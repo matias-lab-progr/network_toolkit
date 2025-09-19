@@ -7,6 +7,8 @@ import sys
 import platform
 from colorama import Fore, Style
 
+from .ssl_tools import display_ssl_analysis, get_ssl_certificate, analyze_ssl_certificate, check_ssl_security
+
 from .dns_tools import (
     dns_lookup,
     comprehensive_dns_scan,
@@ -241,6 +243,42 @@ def handle_update_ip_ranges():
     from .network_tools import update_ip_ranges
     update_ip_ranges()
 
+def handle_ssl_analysis_option():
+    """Maneja la opción de análisis SSL"""
+    domain = input("Introduce el dominio para análisis SSL: ").strip()
+
+    if not is_valid_domain(domain):
+        print(f"{Fore.RED}[!] Dominio no válido.{Style.RESET_ALL}")
+        return
+    
+    print(f"\n[*] Analizando certificado SSL para {domain}...")
+    
+    # Obtener certificado
+    cert_result = get_ssl_certificate(domain)
+    if not cert_result['success']:
+        print(f"{Fore.RED}[!] {cert_result['error']}{Style.RESET_ALL}")
+        return
+    
+    # Analizar certificado
+    ssl_info = analyze_ssl_certificate(cert_result['certificate'])
+    if not ssl_info.get('success', True):
+        print(f"{Fore.RED}[!] {ssl_info['error']}{Style.RESET_ALL}")
+        return
+    
+    # Evaluar seguridad
+    security = check_ssl_security(ssl_info, cert_result['cipher'])
+    
+    # Mostrar resultados
+    results = {
+        'success': True,
+        'ssl_info': ssl_info,
+        'security': security,
+        'cipher': cert_result['cipher'],
+        'version': cert_result['version']
+    }
+    
+    display_ssl_analysis(results, domain)
+
 def main():
     # Inicializar colorama de manera segura
     Fore, Style = init_colorama()
@@ -271,10 +309,11 @@ def main():
         print("11. Análisis ASN/BGP")
         print("12. Escaneo de Puertos")
         print("13. DNS Inverso ExtendidoP")
-        print("14. Actualizar rangos de IP")    # ← Nueva opción
-        print("15. Salir")
+        print("14. Actualizar rangos de IP")
+        print("15. Análisis SSL/TLS")
+        print("16. Salir")
         
-        choice = input("\nSelecciona una opción (1-15): ").strip()
+        choice = input("\nSelecciona una opción (1-16): ").strip()
 
         try:
             if choice == '1':
@@ -306,10 +345,12 @@ def main():
             elif choice == '14':
                 handle_update_ip_ranges()
             elif choice == '15':
+                handle_ssl_analysis_option()
+            elif choice == '16':
                 print("¡Saliendo! Hasta luego")
                 sys.exit(0)
             else:
-                print("Opción no válida. Por favor, elige 1-15.")
+                print("Opción no válida. Por favor, elige 1-16.")
         
         except KeyboardInterrupt:
             print("\n\nOperación cancelada por el usuario.")
