@@ -274,38 +274,43 @@ def display_port_scan_results(scan_info, ip_address):
     # ✅ RECOMENDACIONES INTELIGENTES BASADAS EN PROVEEDOR
     if scan_info['open_ports']:
         print(f"\n{Fore.RED}🔒 {Fore.WHITE}RECOMENDACIONES DE SEGURIDAD:{Style.RESET_ALL}")
-        
+    
         for port in scan_info['open_ports']:
             # Puertos riesgosos (siempre alertar)
-            if port in [21, 23, 3389, 5900]:
+            if port in [21, 23, 3389, 5900, 135, 139, 445]:
                 print(f"  {Fore.RED}• Puerto {port}: ⚠️  RIESGOSO - Cerrar inmediatamente{Style.RESET_ALL}")
-            
-            # Puertos SSH (alertar si no es proveedor cloud)
-            elif port == 22:
-                if provider in ['Google', 'Amazon AWS', 'Microsoft Azure', 'Cloudflare']:
-                    print(f"  {Fore.GREEN}• Puerto {port}: ✅ SSH seguro ({provider}){Style.RESET_ALL}")
-                else:
-                    print(f"  {Fore.YELLOW}• Puerto {port}: ⚠️  SSH expuesto - Usar claves SSH{Style.RESET_ALL}")
-            
-            # Puertos web (contextualizar)
-            elif port in [80, 443]:
-                if provider in ['Google', 'Amazon AWS', 'Microsoft Azure', 'Cloudflare']:
-                    print(f"  {Fore.GREEN}• Puerto {port}: ✅ Configuración apropiada ({provider}){Style.RESET_ALL}")
-                else:
-                    print(f"  {Fore.YELLOW}• Puerto {port}: 🔒 Asegurar con certificados SSL/TLS{Style.RESET_ALL}")
-            
-            # Puerto DNS (especial para Google/Cloudflare)
+        
+            # Puerto DNS (especial para DNS públicos)
             elif port == 53:
                 if provider in ['Google', 'Cloudflare']:
                     print(f"  {Fore.GREEN}• Puerto {port}: ✅ DNS público ({provider}){Style.RESET_ALL}")
                 else:
                     print(f"  {Fore.YELLOW}• Puerto {port}: ⚠️  DNS expuesto - Considerar firewall{Style.RESET_ALL}")
-            
+        
+            # Puertos web HTTP (siempre recomendar HTTPS)
+            elif port == 80:
+                if provider in ['Google', 'Cloudflare']:
+                    print(f"  {Fore.YELLOW}• Puerto {port}: 🔄 Redirigir a HTTPS ({provider}){Style.RESET_ALL}")
+                else:
+                    print(f"  {Fore.YELLOW}• Puerto {port}: 🔒 Redirigir a HTTPS{Style.RESET_ALL}")
+        
+            # Puertos web HTTPS (ok para servidores web)
+            elif port == 443:
+                if provider in ['Google', 'Cloudflare', 'Amazon AWS', 'Microsoft Azure']:
+                    print(f"  {Fore.GREEN}• Puerto {port}: ✅ HTTPS seguro ({provider}){Style.RESET_ALL}")
+                else:
+                    print(f"  {Fore.YELLOW}• Puerto {port}: 🔒 Verificar certificados SSL/TLS{Style.RESET_ALL}")
+        
+            # Puerto SSH (contextual)
+            elif port == 22:
+                if provider in ['Google', 'Amazon AWS', 'Microsoft Azure', 'Cloudflare']:
+                    print(f"  {Fore.GREEN}• Puerto {port}: ✅ SSH seguro ({provider}){Style.RESET_ALL}")
+                else:
+                    print(f"  {Fore.YELLOW}• Puerto {port}: ⚠️  SSH expuesto - Usar claves SSH{Style.RESET_ALL}")
+        
             # Otros puertos
             else:
                 print(f"  {Fore.YELLOW}• Puerto {port}: 🔍 Revisar si es necesario{Style.RESET_ALL}")
-    
-    print(f"\n{Fore.CYAN}============================================={Style.RESET_ALL}")
 
 def extended_reverse_dns(ip_address):
     """
@@ -390,7 +395,7 @@ def display_extended_dns_info(dns_info, ip_address):
 
 def detect_provider(ip_address):
     """
-    Detecta el proveedor/organización basado en rangos de IP conocidos.
+    Detecta el proveedor/organización y normaliza el nombre.
     """
     try:
         import ipaddress
@@ -399,32 +404,53 @@ def detect_provider(ip_address):
         ip = ipaddress.ip_address(ip_address)
         ip_ranges = load_ip_ranges()
         
-        if not ip_ranges:
-            # Fallback a información ASN si no hay archivo de rangos
-            asn_info = get_detailed_asn_info(ip_address)
-            if 'error' not in asn_info and asn_info['org'] != 'N/A':
-                return asn_info['org']
-            return "Desconocido"
+        # Primero buscar en los rangos definidos
+        if ip_ranges:
+            for provider, ranges in ip_ranges.items():
+                for range_str in ranges:
+                    try:
+                        network = ipaddress.ip_network(range_str)
+                        if ip in network:
+                            return provider  # ← Retorna el nombre normalizado del JSON
+                    except ValueError:
+                        continue
         
-        for provider, ranges in ip_ranges.items():
-            for range_str in ranges:
-                try:
-                    network = ipaddress.ip_network(range_str)
-                    if ip in network:
-                        return provider
-                except ValueError:
-                    # Ignorar rangos mal formados
-                    continue
-        
-        # Fallback a información ASN
+        # Fallback: usar información ASN y normalizar
         asn_info = get_detailed_asn_info(ip_address)
         if 'error' not in asn_info and asn_info['org'] != 'N/A':
-            return asn_info['org']
+            return normalize_provider_name(asn_info['org'])
         
         return "Desconocido"
         
     except Exception as e:
         return f"Error en detección: {str(e)}"
+
+def normalize_provider_name(org_name):
+    """
+    Normaliza nombres de proveedores para consistencia.
+    """
+    org_lower = org_name.lower()
+    
+    # Mapeo de nombres normalizados
+    if 'cloudflare' in org_lower:
+        return "Cloudflare"
+    elif 'google' in org_lower:
+        return "Google"
+    elif 'amazon' in org_lower or 'aws' in org_lower:
+        return "Amazon AWS"
+    elif 'microsoft' in org_lower or 'azure' in org_lower:
+        return "Microsoft Azure"
+    elif 'oracle' in org_lower:
+        return "Oracle Cloud"
+    elif 'digitalocean' in org_lower:
+        return "DigitalOcean"
+    elif 'github' in org_lower:
+        return "GitHub"
+    elif 'facebook' in org_lower:
+        return "Facebook"
+    
+    # Si no coincide, devolver el nombre original
+    return org_name
 
 def update_ip_ranges():
     """

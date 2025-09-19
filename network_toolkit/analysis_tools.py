@@ -7,93 +7,247 @@ import re
 from colorama import Fore, Style
 
 def analyse_ping_output(output, target):
-    #Analiza la salida del comando ping y añade explicaciones
-    analysis = "\n--- ANÁLISIS PING ---\n"
+    """
+    Analiza la salida del comando ping (Linux/macOS/Windows, ES/EN) y devuelve
+    un texto explicativo en español con métricas y recomendaciones.
+    """
+    import re
+    import math
+    from colorama import Fore, Style
 
-    # Buscar patrones en la salida
-    lines = output.splitlines()
-    lost_packets = -1
-    rtt_line = ""
+    # Helpers
+    def safe_float(x, default=None):
+        try:
+            return float(x)
+        except:
+            return default
 
-    for line in lines:
-        if "perdidos" in line or "loss" in line:    # Español/Inglés
-            # Encuentra el número antes del signo de porcentaje '%'
-            # Ejemplos de líneas:
-            #   "    (0% perdidos),"
-            #   "    Packets: Sent = 4, Received = 4, Lost = 0 (0% loss),"
-            import re
-            # Busca un patrón de dígitos seguido de un % en la línea
-            match = re.search(r'(\d+)%', line)
-            if match:
-                lost_packets = int(match.group(1))
-        if "Mínimo" in line or "Minimum" in line or "Media" in line or "Average" in line:
-            rtt_line = line.strip()  # Usamos strip() para limpiar espacios
-    
-    # 1. Análisis de pérdidas de paquetes
-    analysis += f"• Pérdida de Paquetes: {lost_packets}%\n"
-    if lost_packets == 0:
-        analysis += " Excelente. No hay pérdida de paquetes.\n"
-    elif lost_packets < 5:
-        analysis += " Aceptable. Pérdida leve, podría indicar congestión.\n"
-    elif lost_packets == -1:
-        analysis += " No se pudo determinar el porcentaje de pérdida.\n"
-    else:
-        analysis += " Pobre. Pérdida alta. Problemas de conexión graves.\n"
+    def parse_int(x, default=None):
+        try:
+            return int(x)
+        except:
+            return default
 
-    # 2. Análisis de Latencia (RTT)
-    if rtt_line:
-        analysis += f"• Latencia (RTT): {rtt_line}\n"
-        # Evaluación simple de la latencia
-        if "ms" in rtt_line:
-            # Intentemos extraer el valor promedio
-            try:
-                avg_match = re.search(r'Media\s*=\s*(\d+)ms', rtt_line)  # Español
-                if not avg_match:
-                    avg_match = re.search(r'Average\s*=\s*(\d+)ms', rtt_line)  # Inglés
-                if avg_match:
-                    avg_latency = int(avg_match.group(1))
-                    if avg_latency < 50:
-                        analysis += f"Latencia excelente ({avg_latency}ms). Ideal para juegos y videollamadas.\n"
-                    elif avg_latency < 100:
-                        analysis += f"Latencia aceptable ({avg_latency}ms). Bueno para navegación y streaming.\n"
-                    elif avg_latency < 200:
-                        analysis += f"Latencia regular ({avg_latency}ms). Puede haber lag en aplicaciones en tiempo real.\n"
-                    else:
-                        analysis += f"Latencia pobre ({avg_latency}ms). Conexión muy lenta.\n"
-            except:
-                analysis += "No se pudo analizar en profundidad la latencia.\n"
-    else:
-        analysis += "• Latencia: No se pudo determinar.\n"
-           
-    # 3. Análisis de TTL
-    ttl_found = False
-    for line in lines:
-        if "TTL=" in line or "ttl=" in line:
-            try:
-                ttl_part = re.search(r'TTL=(\d+)', line, re.IGNORECASE)
-                if ttl_part:
-                    ttl_value = int(ttl_part.group(1))
-                    analysis += f"• TTL (Time to Live): {ttl_value}\n"
-                    analysis += f"  Capa OSI: Red (3) | Capa TCP/IP: Internet (2)\n"
-                    
-                    # Deducir el SO inicial basado en el TTL
-                    if ttl_value <= 64:
-                        initial_ttl_guess = "Linux/Unix (TTL inicial: 64)"
-                    elif 65 <= ttl_value <= 128:
-                        initial_ttl_guess = "Windows (TTL inicial: 128)"
-                    else:
-                        initial_ttl_guess = "otro dispositivo/routeo complejo"
-                    analysis += f"  El host remoto parece ser: {initial_ttl_guess}\n"
-                    ttl_found = True
-                    break
-            except (ValueError, IndexError):
+    def fmt_ms(v):
+        if v is None:
+            return "N/A"
+        return f"{v:.2f} ms"
+
+    # Inicialización
+    analysis_lines = []
+    header = f"{Fore.CYAN}--- ANÁLISIS PING: {target} ---{Style.RESET_ALL}"
+    analysis_lines.append(header)
+
+    # Métricas que trataremos de obtener
+    metrics = {
+        "sent": None,
+        "received": None,
+        "lost": None,
+        "loss_percent": None,
+        "rtt_min": None,
+        "rtt_avg": None,
+        "rtt_max": None,
+        "rtt_mdev": None,
+        "rtt_stddev": None,
+        "jitter": None,
+        "sample_times": [],   # lista de tiempos individuales (ms)
+        "ttl": None
+    }
+
+    lines = [ln.strip() for ln in output.splitlines() if ln.strip()]
+
+    # 1) Intentar extraer paquetes (Unix: "4 packets transmitted, 4 received, 0% packet loss")
+    # Linux/mac pattern
+    for ln in lines:
+        # packets transmitted, received, packet loss
+        m = re.search(r'(\d+)\s+packets\s+transmitted[, ]+\s*(\d+)\s+(?:received|received,)\b.*?(\d+)%', ln, re.IGNORECASE)
+        if m:
+            metrics["sent"] = parse_int(m.group(1))
+            metrics["received"] = parse_int(m.group(2))
+            metrics["loss_percent"] = parse_int(m.group(3))
+            metrics["lost"] = None if metrics["sent"] is None or metrics["received"] is None else metrics["sent"] - metrics["received"]
+            break
+
+    # Windows pattern: "Packets: Sent = 4, Received = 4, Lost = 0 (0% loss),"
+    if metrics["sent"] is None:
+        for ln in lines:
+            m = re.search(r'Sent\s*=\s*(\d+)\s*,\s*Received\s*=\s*(\d+)\s*,\s*Lost\s*=\s*(\d+)', ln, re.IGNORECASE)
+            if m:
+                metrics["sent"] = parse_int(m.group(1))
+                metrics["received"] = parse_int(m.group(2))
+                metrics["lost"] = parse_int(m.group(3))
+                # buscar % loss si aparece
+                m2 = re.search(r'\((\d+)%\s*loss\)|\((\d+)%\s*perdidos\)', ln, re.IGNORECASE)
+                if m2:
+                    metrics["loss_percent"] = parse_int(m2.group(1) or m2.group(2))
+                elif metrics["sent"] is not None:
+                    metrics["loss_percent"] = 0 if metrics["lost"] == 0 else round(metrics["lost"] / metrics["sent"] * 100, 2)
+                break
+
+    # Si aún no se detectó, intentar patrón en español "4 paquetes transmitidos, 4 recibidos, 0% perdidos"
+    if metrics["sent"] is None:
+        for ln in lines:
+            m = re.search(r'(\d+)\s+paquetes\s+transmitidos[, ]+\s*(\d+)\s+(?:recibidos|recibido)[, ]+.*?(\d+)%', ln, re.IGNORECASE)
+            if m:
+                metrics["sent"] = parse_int(m.group(1))
+                metrics["received"] = parse_int(m.group(2))
+                metrics["loss_percent"] = parse_int(m.group(3))
+                metrics["lost"] = None if metrics["sent"] is None or metrics["received"] is None else metrics["sent"] - metrics["received"]
+                break
+
+    # 2) Extraer valores RTT (Unix: rtt min/avg/max/mdev = 0.123/0.123/0.123/0.000 ms)
+    for ln in lines:
+        m = re.search(r'=\s*([\d.]+)\/([\d.]+)\/([\d.]+)\/([\d.]+)\s*ms', ln)  # iputils
+        if not m:
+            m = re.search(r'round-trip.*=\s*([\d.]+)\/([\d.]+)\/([\d.]+)\/([\d.]+)\s*ms', ln, re.IGNORECASE)
+        if m:
+            metrics["rtt_min"] = safe_float(m.group(1))
+            metrics["rtt_avg"] = safe_float(m.group(2))
+            metrics["rtt_max"] = safe_float(m.group(3))
+            metrics["rtt_mdev"] = safe_float(m.group(4))
+            break
+
+    # 2b) Windows block: look for "Minimum = Xms, Maximum = Yms, Average = Zms"
+    if metrics["rtt_avg"] is None:
+        for ln in lines:
+            m = re.search(r'Minimum\s*=\s*([\d<>]+)ms.*Maximum\s*=\s*([\d<>]+)ms.*Average\s*=\s*([\d<>]+)ms', ln, re.IGNORECASE)
+            if m:
+                def interpret_ms(s):
+                    if '<' in s:
+                        return 0.5
+                    return safe_float(re.sub(r'[^\d.]','',s))
+                metrics["rtt_min"] = interpret_ms(m.group(1))
+                metrics["rtt_max"] = interpret_ms(m.group(2))
+                metrics["rtt_avg"] = interpret_ms(m.group(3))
+                break
+
+    # 3) Si no hay resumen RTT, extraer todos los "time=" de respuestas y calcular estadísticas
+    if metrics["rtt_avg"] is None:
+        times = []
+        for ln in lines:
+            # ejemplos: time=0.123 ms  | time=1ms | time<1ms
+            m = re.search(r'time[=<]?\s*([\d.]+)\s*ms', ln, re.IGNORECASE)
+            if m:
+                val = safe_float(m.group(1))
+                if val is not None:
+                    times.append(val)
                 continue
-    
-    if not ttl_found:
-        analysis += "• TTL: No se pudo determinar.\n"
-        
-    analysis += "--------------------------------\n"
-    return analysis
+            # Windows format "time<1ms" -> approximate
+            if re.search(r'time\s*<\s*1\s*ms', ln, re.IGNORECASE):
+                times.append(0.5)
+        if times:
+            metrics["sample_times"] = times
+            metrics["rtt_min"] = min(times)
+            metrics["rtt_max"] = max(times)
+            metrics["rtt_avg"] = sum(times) / len(times)
+            # stddev
+            if len(times) > 1:
+                mean = metrics["rtt_avg"]
+                variance = sum((t - mean) ** 2 for t in times) / len(times)
+                metrics["rtt_stddev"] = math.sqrt(variance)
+                metrics["rtt_mdev"] = metrics["rtt_stddev"]
+            else:
+                metrics["rtt_stddev"] = 0.0
+                metrics["rtt_mdev"] = 0.0
+
+    # 4) TTL: buscar la primera aparición de TTL= o ttl=
+    for ln in lines:
+        m = re.search(r'TTL=(\d+)', ln, re.IGNORECASE)
+        if not m:
+            m = re.search(r'ttl=(\d+)', ln, re.IGNORECASE)
+        if m:
+            metrics["ttl"] = parse_int(m.group(1))
+            break
+
+    # 5) Si no tenemos loss_percent pero sí sent/received, calcularlo
+    if metrics["loss_percent"] is None and metrics["sent"] is not None and metrics["received"] is not None:
+        metrics["lost"] = metrics["sent"] - metrics["received"]
+        try:
+            metrics["loss_percent"] = round(metrics["lost"] / metrics["sent"] * 100, 2) if metrics["sent"] > 0 else None
+        except:
+            metrics["loss_percent"] = None
+
+    # --- Generar análisis en texto (español) ---
+    # 1. Pérdida de paquetes
+    lp = metrics["loss_percent"]
+    if lp is None:
+        analysis_lines.append(f"• Pérdida de paquetes: {Fore.YELLOW}No disponible{Style.RESET_ALL}")
+    else:
+        loss_color = Fore.GREEN if lp == 0 else (Fore.YELLOW if lp <= 2 else (Fore.MAGENTA if lp <= 5 else Fore.RED))
+        analysis_lines.append(f"• Pérdida de paquetes: {loss_color}{lp}%{Style.RESET_ALL}")
+        # Interpretación
+        if lp == 0:
+            analysis_lines.append("  → Excelente: no hay pérdida de paquetes.")
+        elif lp <= 2:
+            analysis_lines.append("  → Muy buena: pérdida mínima, es tolerable.")
+        elif lp <= 5:
+            analysis_lines.append("  → Aceptable pero a vigilar: posible congestión intermitente.")
+        else:
+            analysis_lines.append("  → Problemática: pérdida significativa. Revisar conexión/ISP/infraestructura.")
+
+    # 2. Latencia (RTT) y jitter/stddev
+    if metrics["rtt_avg"] is not None:
+        avg = metrics["rtt_avg"]
+        maxv = metrics["rtt_max"]
+        minv = metrics["rtt_min"]
+        stddev = metrics.get("rtt_stddev", metrics.get("rtt_mdev"))
+        analysis_lines.append(f"• Latencia (RTT): min={fmt_ms(minv)}, avg={fmt_ms(avg)}, max={fmt_ms(maxv)}")
+        if stddev is not None:
+            analysis_lines.append(f"  → Jitter/StdDev aproximado: {fmt_ms(stddev)}")
+        # Categorizar
+        if avg < 50:
+            analysis_lines.append(f"  → Latencia excelente ({avg:.1f} ms). Adecuada para juegos/videollamadas.")
+        elif avg < 100:
+            analysis_lines.append(f"  → Latencia buena ({avg:.1f} ms). Adecuada para la mayoría de usos.")
+        elif avg < 200:
+            analysis_lines.append(f"  → Latencia moderada ({avg:.1f} ms). Puede afectar aplicaciones en tiempo real.")
+        else:
+            analysis_lines.append(f"  → Latencia alta ({avg:.1f} ms). Revisar ruta/ISP.")
+
+    else:
+        analysis_lines.append(f"• Latencia (RTT): {Fore.YELLOW}No disponible{Style.RESET_ALL}")
+
+    # 3. TTL y deducción SO aproximada
+    if metrics["ttl"] is not None:
+        ttl = metrics["ttl"]
+        analysis_lines.append(f"• TTL (Time To Live): {Fore.WHITE}{ttl}{Style.RESET_ALL}")
+        if ttl <= 64:
+            guess = "Linux/Unix (TTL inicial típico: 64)"
+        elif 65 <= ttl <= 128:
+            guess = "Windows (TTL inicial típico: 128)"
+        else:
+            guess = "Dispositivo/entorno con TTL alto o salto de red complejo"
+        analysis_lines.append(f"  → Estimación rápida del SO/stack: {guess}")
+    else:
+        analysis_lines.append("• TTL: No detectado en la salida.")
+
+    # 4. Recomendaciones prácticas (diagnóstico)
+    analysis_lines.append("\n• Recomendaciones / siguientes pasos:")
+    # Prioritizar según métricas
+    if lp is not None and lp > 5:
+        analysis_lines.append("  - Alta pérdida detectada: Ejecutar pruebas desde otro punto de la red (otra máquina), comprobar cableado/puerto, y contactar ISP si el problema persiste.")
+        analysis_lines.append("  - Ejecutar `mtr <host>` (Linux/macOS) o `pathping <host>` (Windows) para identificar dónde ocurre la pérdida.")
+        analysis_lines.append("  - Repetir ping con más paquetes: `ping -c 50 <host>` (Linux) / `ping -n 50 <host>` (Windows).")
+    elif metrics["rtt_avg"] is not None and metrics["rtt_avg"] > 200:
+        analysis_lines.append("  - Latencia muy alta: probar trazas (`traceroute` / `tracert`) y contactar al proveedor si el cuello de botella está fuera de la red local.")
+    else:
+        analysis_lines.append("  - Si observas jitter o picos, realiza pruebas sostenidas (MTR) para localizar el salto problemático.")
+        analysis_lines.append("  - Para pruebas más precisas, usar `ping` con payload y tamano: `ping -s 1400 <host>` (Linux).")
+    analysis_lines.append("  - Comprueba la carga del equipo local (CPU/uso de NIC) y evita Wi-Fi si buscas diagnóstico de calidad de enlace.")
+    analysis_lines.append("  - Si es una red empresarial: revisa duplex mismatch y configuración del switch hacia el host.")
+
+    # 5. Append raw summary metrics en formato compacto (útil para logging)
+    analysis_lines.append("\n• Métricas detectadas (resumen):")
+    analysis_lines.append(f"  - Sent: {metrics['sent']}, Received: {metrics['received']}, Lost: {metrics['lost']}, Loss%: {metrics['loss_percent']}")
+    analysis_lines.append(f"  - RTT min/avg/max (ms): {metrics['rtt_min']}/{metrics['rtt_avg']}/{metrics['rtt_max']}")
+    if metrics.get("rtt_stddev") is not None:
+        analysis_lines.append(f"  - RTT stddev: {metrics['rtt_stddev']:.2f} ms")
+
+    # Pie
+    analysis_lines.append(f"{Fore.CYAN}{'-'*40}{Style.RESET_ALL}")
+
+    return "\n".join(analysis_lines)
+
 
 def analyze_traceroute_output(output, target):
     """Analiza la salida del comando traceroute y proporciona información detallada."""
