@@ -9,6 +9,8 @@ from colorama import Fore, Style
 
 from .ssl_tools import display_ssl_analysis, get_ssl_certificate, analyze_ssl_certificate, check_ssl_security
 
+from .recon_tools import dns_subdomain_enumeration, display_subdomain_results
+
 from .dns_tools import (
     dns_lookup,
     comprehensive_dns_scan,
@@ -279,6 +281,80 @@ def handle_ssl_analysis_option():
     
     display_ssl_analysis(results, domain)
 
+def handle_subdomain_enumeration_option():
+    """Maneja la opción de enumeración de subdominios"""
+    domain = input("Introduce el dominio para enumerar subdominios: ").strip()
+
+    if not is_valid_domain(domain):
+        print(f"{Fore.RED}[!] Dominio no válido.{Style.RESET_ALL}")
+        return
+    
+    # Opciones de enumeración
+    print(f"\n{Fore.YELLOW}[*] Selecciona método de enumeración:{Style.RESET_ALL}")
+    print("1. Fuerza bruta DNS (rápido)")
+    print("2. Enumeración pasiva (más resultados, requiere internet)")
+    
+    choice = input("Opción (1-2): ").strip()
+    
+    if choice == '1':
+        print(f"\n[*] Iniciando enumeración por fuerza bruta...")
+        results = dns_subdomain_enumeration(domain)
+        display_subdomain_results(results)
+        
+    elif choice == '2':
+        print(f"\n[*] Iniciando enumeración pasiva...")
+        from .recon_tools import passive_subdomain_enumeration, display_passive_subdomain_results
+        results = passive_subdomain_enumeration(domain)
+        display_passive_subdomain_results(results)
+        
+    else:
+        print(f"{Fore.RED}[!] Opción no válida{Style.RESET_ALL}")
+
+def handle_threat_intel_option():
+    """Maneja la opción de threat intelligence con métodos públicos"""
+    ip_address = input("Introduce la IP para análisis de threat intelligence: ").strip()
+
+    if not is_valid_ip(ip_address):
+        print(f"{Fore.RED}[!] IP no válida.{Style.RESET_ALL}")
+        return
+    
+    from .threat_intel import get_public_ip_report, display_threat_intel_results
+    results = get_public_ip_report(ip_address)
+    display_threat_intel_results(results)
+
+def handle_ct_search_option():
+    """Maneja la opción de búsqueda en Certificate Transparency"""
+    domain = input("Introduce el dominio para buscar en CT logs: ").strip()
+
+    if not is_valid_domain(domain):
+        print(f"{Fore.RED}[!] Dominio no válido.{Style.RESET_ALL}")
+        return
+    
+    from .recon_tools import certificate_transparency_search, display_ct_results
+    print(f"\n[*] Buscando en Certificate Transparency logs para {domain}...")
+    
+    results = certificate_transparency_search(domain)
+    display_ct_results(results)
+
+def handle_comprehensive_subdomain_enum_option():
+    """Maneja la enumeración completa de subdominios"""
+    domain = input("Introduce el dominio para enumeración completa: ").strip()
+
+    if not is_valid_domain(domain):
+        print(f"{Fore.RED}[!] Dominio no válido.{Style.RESET_ALL}")
+        return
+    
+    from .recon_tools import comprehensive_subdomain_enumeration
+    print(f"\n[*] Iniciando enumeración completa para {domain}...")
+    print(f"{Fore.YELLOW}[!] Esto puede tomar varios minutos...{Style.RESET_ALL}")
+    
+    results = comprehensive_subdomain_enumeration(domain)
+    
+    # Usar display mejorado para resultados comprehensivos
+    from .recon_tools import display_comprehensive_results
+    display_comprehensive_results(results)
+
+
 def main():
     # Inicializar colorama de manera segura
     Fore, Style = init_colorama()
@@ -308,12 +384,16 @@ def main():
         print("10. Geolocalización de IP")
         print("11. Análisis ASN/BGP")
         print("12. Escaneo de Puertos")
-        print("13. DNS Inverso ExtendidoP")
+        print("13. DNS Inverso Extendido")
         print("14. Actualizar rangos de IP")
         print("15. Análisis SSL/TLS")
-        print("16. Salir")
+        print("16. Enumeración de Subdominios")
+        print("17. Certificate Transparency Search")
+        print("18. Enumeración Completa Subdominios")
+        print("19. Threat Intelligence (Público)")
+        print("20. Salir")
         
-        choice = input("\nSelecciona una opción (1-16): ").strip()
+        choice = input("\nSelecciona una opción (1-20): ").strip()
 
         try:
             if choice == '1':
@@ -347,10 +427,18 @@ def main():
             elif choice == '15':
                 handle_ssl_analysis_option()
             elif choice == '16':
+                handle_subdomain_enumeration_option()
+            elif choice == '17':
+                handle_ct_search_option()
+            elif choice == '18':
+                handle_comprehensive_subdomain_enum_option()
+            elif choice == '19':
+                handle_threat_intel_option()
+            elif choice == '20':
                 print("¡Saliendo! Hasta luego")
                 sys.exit(0)
             else:
-                print("Opción no válida. Por favor, elige 1-16.")
+                print("Opción no válida. Por favor, elige 1-20.")
         
         except KeyboardInterrupt:
             print("\n\nOperación cancelada por el usuario.")

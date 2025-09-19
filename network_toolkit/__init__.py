@@ -56,6 +56,28 @@ from .ssl_tools import (
     display_ssl_analysis
 )
 
+from .recon_tools import (
+    dns_subdomain_enumeration,
+    passive_subdomain_enumeration,
+    display_subdomain_results,
+    display_passive_subdomain_results,
+    load_subdomain_wordlist,
+    certificate_transparency_search,
+    display_ct_results,
+    comprehensive_subdomain_enumeration,
+    display_comprehensive_results,
+    export_subdomains_to_file
+)
+
+from .threat_intel import (
+    get_public_ip_report,
+    display_threat_intel_results,
+    check_abuseipdb_public,
+    check_virustotal_public,
+    get_ipinfo_public
+)
+
+
 # Lista de lo que se exporta al hacer 'from network_toolkit import *'
 __all__ = [
     'dns_lookup',
