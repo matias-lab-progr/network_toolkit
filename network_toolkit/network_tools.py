@@ -237,7 +237,7 @@ def scan_common_ports(ip_address):
 
 def display_port_scan_results(scan_info, ip_address):
     """
-    Muestra los resultados del escaneo de puertos con detección de proveedor.
+    Muestra los resultados del escaneo de puertos con recomendaciones inteligentes.
     """
     if 'error' in scan_info:
         print(f"{Fore.RED}[!] {scan_info['error']}{Style.RESET_ALL}")
@@ -247,7 +247,7 @@ def display_port_scan_results(scan_info, ip_address):
     print(f"{Fore.YELLOW}• Puertos escaneados: {Fore.WHITE}{scan_info['total_scanned']}{Style.RESET_ALL}")
     print(f"{Fore.YELLOW}• Puertos abiertos: {Fore.WHITE}{len(scan_info['open_ports'])}{Style.RESET_ALL}")
     
-    # ✅ DETECCIÓN DEL PROVEEDOR
+    # Detectar proveedor
     provider = detect_provider(ip_address)
     print(f"{Fore.YELLOW}• Proveedor detectado: {Fore.WHITE}{provider}{Style.RESET_ALL}")
     
@@ -271,14 +271,39 @@ def display_port_scan_results(scan_info, ip_address):
     print(f"  {Fore.WHITE}  Puertos abiertos pueden representar vectores de ataque")
     print(f"  {Fore.WHITE}  Es importante mantener solo los puertos necesarios abiertos{Style.RESET_ALL}")
     
-    # Recomendaciones de seguridad
+    # ✅ RECOMENDACIONES INTELIGENTES BASADAS EN PROVEEDOR
     if scan_info['open_ports']:
         print(f"\n{Fore.RED}🔒 {Fore.WHITE}RECOMENDACIONES DE SEGURIDAD:{Style.RESET_ALL}")
+        
         for port in scan_info['open_ports']:
-            if port in [21, 23, 3389]:  # Puertos considerados riesgosos
-                print(f"  {Fore.RED}• Puerto {port}: Considerar cerrarlo si no es esencial{Style.RESET_ALL}")
-            elif port in [80, 443]:  # Puertos web
-                print(f"  {Fore.YELLOW}• Puerto {port}: Asegurar con certificados SSL/TLS{Style.RESET_ALL}")
+            # Puertos riesgosos (siempre alertar)
+            if port in [21, 23, 3389, 5900]:
+                print(f"  {Fore.RED}• Puerto {port}: ⚠️  RIESGOSO - Cerrar inmediatamente{Style.RESET_ALL}")
+            
+            # Puertos SSH (alertar si no es proveedor cloud)
+            elif port == 22:
+                if provider in ['Google', 'Amazon AWS', 'Microsoft Azure', 'Cloudflare']:
+                    print(f"  {Fore.GREEN}• Puerto {port}: ✅ SSH seguro ({provider}){Style.RESET_ALL}")
+                else:
+                    print(f"  {Fore.YELLOW}• Puerto {port}: ⚠️  SSH expuesto - Usar claves SSH{Style.RESET_ALL}")
+            
+            # Puertos web (contextualizar)
+            elif port in [80, 443]:
+                if provider in ['Google', 'Amazon AWS', 'Microsoft Azure', 'Cloudflare']:
+                    print(f"  {Fore.GREEN}• Puerto {port}: ✅ Configuración apropiada ({provider}){Style.RESET_ALL}")
+                else:
+                    print(f"  {Fore.YELLOW}• Puerto {port}: 🔒 Asegurar con certificados SSL/TLS{Style.RESET_ALL}")
+            
+            # Puerto DNS (especial para Google/Cloudflare)
+            elif port == 53:
+                if provider in ['Google', 'Cloudflare']:
+                    print(f"  {Fore.GREEN}• Puerto {port}: ✅ DNS público ({provider}){Style.RESET_ALL}")
+                else:
+                    print(f"  {Fore.YELLOW}• Puerto {port}: ⚠️  DNS expuesto - Considerar firewall{Style.RESET_ALL}")
+            
+            # Otros puertos
+            else:
+                print(f"  {Fore.YELLOW}• Puerto {port}: 🔍 Revisar si es necesario{Style.RESET_ALL}")
     
     print(f"\n{Fore.CYAN}============================================={Style.RESET_ALL}")
 
