@@ -3,6 +3,9 @@
 Módulo de análisis para Network Toolkit - Análisis y procesamiento de resultados
 """
 
+from datetime import datetime
+from typing import Any, Dict, Tuple
+from colorama import Fore, Style
 import re
 from colorama import Fore, Style
 
@@ -10,6 +13,9 @@ def analyse_ping_output(output, target):
     """
     Analiza la salida del comando ping (Linux/macOS/Windows, ES/EN) y devuelve
     un texto explicativo en español con métricas y recomendaciones.
+    
+    Returns:
+        Tuple[str, Dict]: Análisis en texto y métricas estructuradas
     """
     import re
     import math
@@ -38,23 +44,33 @@ def analyse_ping_output(output, target):
     header = f"{Fore.CYAN}--- ANÁLISIS PING: {target} ---{Style.RESET_ALL}"
     analysis_lines.append(header)
 
-    # Métricas que trataremos de obtener
+    # Métricas que trataremos de obtener (estructura compatible con el nuevo sistema)
     metrics = {
-        "sent": None,
-        "received": None,
-        "lost": None,
-        "loss_percent": None,
-        "rtt_min": None,
-        "rtt_avg": None,
-        "rtt_max": None,
-        "rtt_mdev": None,
-        "rtt_stddev": None,
-        "jitter": None,
-        "sample_times": [],   # lista de tiempos individuales (ms)
-        "ttl": None
+        "target": target,
+        "timestamp": datetime.now().isoformat(),
+        "sent": 0,
+        "received": 0,
+        "lost": 0,
+        "loss_percent": 0.0,
+        "rtt_min": 0.0,
+        "rtt_avg": 0.0,
+        "rtt_max": 0.0,
+        "rtt_stddev": 0.0,
+        "ttl": 0,
+        "reachable": False,
+        "sample_times": []   # lista de tiempos individuales (ms)
     }
 
     lines = [ln.strip() for ln in output.splitlines() if ln.strip()]
+
+    # Verificar si el host es alcanzable
+    if "Destination Host Unreachable" in output or "100% loss" in output:
+        metrics["reachable"] = False
+        analysis_lines.append(f"{Fore.RED}❌ Host {target} no alcanzable{Style.RESET_ALL}")
+        return "\n".join(analysis_lines), metrics
+    
+    metrics["reachable"] = True
+    analysis_lines.append(f"{Fore.GREEN}✅ Host {target} alcanzable{Style.RESET_ALL}")
 
     # 1) Intentar extraer paquetes (Unix: "4 packets transmitted, 4 received, 0% packet loss")
     # Linux/mac pattern
@@ -104,7 +120,7 @@ def analyse_ping_output(output, target):
             metrics["rtt_min"] = safe_float(m.group(1))
             metrics["rtt_avg"] = safe_float(m.group(2))
             metrics["rtt_max"] = safe_float(m.group(3))
-            metrics["rtt_mdev"] = safe_float(m.group(4))
+            metrics["rtt_stddev"] = safe_float(m.group(4))
             break
 
     # 2b) Windows block: look for "Minimum = Xms, Maximum = Yms, Average = Zms"
@@ -145,10 +161,8 @@ def analyse_ping_output(output, target):
                 mean = metrics["rtt_avg"]
                 variance = sum((t - mean) ** 2 for t in times) / len(times)
                 metrics["rtt_stddev"] = math.sqrt(variance)
-                metrics["rtt_mdev"] = metrics["rtt_stddev"]
             else:
                 metrics["rtt_stddev"] = 0.0
-                metrics["rtt_mdev"] = 0.0
 
     # 4) TTL: buscar la primera aparición de TTL= o ttl=
     for ln in lines:
@@ -190,7 +204,7 @@ def analyse_ping_output(output, target):
         avg = metrics["rtt_avg"]
         maxv = metrics["rtt_max"]
         minv = metrics["rtt_min"]
-        stddev = metrics.get("rtt_stddev", metrics.get("rtt_mdev"))
+        stddev = metrics.get("rtt_stddev")
         analysis_lines.append(f"• Latencia (RTT): min={fmt_ms(minv)}, avg={fmt_ms(avg)}, max={fmt_ms(maxv)}")
         if stddev is not None:
             analysis_lines.append(f"  → Jitter/StdDev aproximado: {fmt_ms(stddev)}")
@@ -246,12 +260,28 @@ def analyse_ping_output(output, target):
     # Pie
     analysis_lines.append(f"{Fore.CYAN}{'-'*40}{Style.RESET_ALL}")
 
-    return "\n".join(analysis_lines)
-
+    return "\n".join(analysis_lines), metrics
 
 def analyze_traceroute_output(output, target):
     """Analiza la salida del comando traceroute y proporciona información detallada."""
-    analysis = "\n--- ANÁLISIS TRACEROUTE ---\n"
+    import re
+    from colorama import Fore, Style
+    
+    analysis_lines = []
+    analysis_lines.append(f"{Fore.CYAN}--- ANÁLISIS TRACEROUTE: {target} ---{Style.RESET_ALL}")
+
+    # Métricas estructuradas
+    metrics = {
+        "target": target,
+        "total_hops": 0,
+        "timeout_hops": 0,
+        "private_ips": 0,
+        "max_latency": 0,
+        "hops": [],
+        "slow_hops": [],
+        "reachable": False
+    }
+
     lines = output.splitlines()
     
     hops = []
@@ -259,7 +289,7 @@ def analyze_traceroute_output(output, target):
     timeout_hops = 0
     private_ips = 0
     max_latency = 0
-    slow_hops = []  # Cambiamos a diccionario para agrupar por número de salto
+    slow_hops = []
     
     def is_private_ip(ip):
         """Verifica si una IP es privada"""
@@ -308,19 +338,31 @@ def analyze_traceroute_output(output, target):
                         if t == '*' or 'Tiempo' in t:
                             timeouts += 1
                     
-                    hops.append({
+                    hop_data = {
                         'hop': hop_num,
                         'times': [time1, time2, time3],
                         'host': host,
                         'ip': ip,
                         'is_private': is_private_ip(ip),
                         'timeouts': timeouts
-                    })
+                    }
+                    
+                    hops.append(hop_data)
+                    metrics["hops"].append(hop_data)
                 except (ValueError, IndexError):
                     continue
     
     # Analizar los datos recolectados
     total_hops = len(hops)
+    metrics["total_hops"] = total_hops
+    
+    # Verificar si llegó al destino (último salto contiene el target)
+    if hops and (target in hops[-1]['host'] or target in hops[-1]['ip']):
+        metrics["reachable"] = True
+        analysis_lines.append(f"{Fore.GREEN}✅ Ruta completada hasta el destino{Style.RESET_ALL}")
+    else:
+        metrics["reachable"] = False
+        analysis_lines.append(f"{Fore.YELLOW}⚠️  Ruta no completada hasta el destino{Style.RESET_ALL}")
     
     # Diccionario para almacenar la máxima latencia por salto
     max_latency_by_hop = {}
@@ -340,9 +382,9 @@ def analyze_traceroute_output(output, target):
             if time_str != '*' and 'Tiempo' not in time_str:
                 try:
                     # Extraer valor numérico (eliminar 'ms' y convertir a número)
-                    latency_str = re.sub(r'[^\d]', '', time_str)
+                    latency_str = re.sub(r'[^\d.]', '', time_str)
                     if latency_str:  # Asegurarse de que no esté vacío
-                        latency = int(latency_str)
+                        latency = float(latency_str)
                         if latency > hop_max_latency:
                             hop_max_latency = latency
                         if latency > max_latency:
@@ -364,12 +406,17 @@ def analyze_traceroute_output(output, target):
                 'host': hop['host']
             })
     
+    metrics["timeout_hops"] = timeout_hops
+    metrics["private_ips"] = private_ips
+    metrics["max_latency"] = max_latency
+    metrics["slow_hops"] = slow_hops
+    
     # Generar análisis
-    analysis += f"• Saltos totales: {total_hops}\n"
+    analysis_lines.append(f"• Saltos totales: {total_hops}")
     if total_hops > 0:
-        analysis += f"• Saltos con timeouts: {timeout_hops} ({timeout_hops/total_hops*100:.1f}%)\n"
-    analysis += f"• IPs privadas encontradas: {private_ips}\n"
-    analysis += f"• Latencia máxima: {max_latency} ms\n"
+        analysis_lines.append(f"• Saltos con timeouts: {timeout_hops} ({timeout_hops/total_hops*100:.1f}%)")
+    analysis_lines.append(f"• IPs privadas encontradas: {private_ips}")
+    analysis_lines.append(f"• Latencia máxima: {max_latency} ms")
     
     # Análisis de saltos lentos (agrupados por número de salto)
     if slow_hops:
@@ -380,19 +427,19 @@ def analyze_traceroute_output(output, target):
             if hop_num not in unique_slow_hops or slow_hop['latency'] > unique_slow_hops[hop_num]['latency']:
                 unique_slow_hops[hop_num] = slow_hop
         
-        analysis += f"• Saltos lentos (>100ms): {len(unique_slow_hops)}\n"
+        analysis_lines.append(f"• Saltos lentos (>100ms): {len(unique_slow_hops)}")
         for slow_hop in sorted(unique_slow_hops.values(), key=lambda x: x['latency'], reverse=True)[:5]:
-            analysis += f"  - Salto {slow_hop['hop']}: {slow_hop['latency']}ms ({slow_hop['host']})\n"
+            analysis_lines.append(f"  - Salto {slow_hop['hop']}: {slow_hop['latency']}ms ({slow_hop['host']})")
     
     # Identificar problemas de red
     if total_hops > 0 and timeout_hops / total_hops > 0.3:
-        analysis += "⚠️  ALTO PORCENTAJE DE TIMEOUTS: Puede haber filtrado de paquetes o problemas de ruteo.\n"
+        analysis_lines.append("⚠️  ALTO PORCENTAJE DE TIMEOUTS: Puede haber filtrado de paquetes o problemas de ruteo.")
     
     if private_ips > 0:
-        analysis += "🔍 SE DETECTARON IPs PRIVADAS: La ruta pasa por redes internas/NAT.\n"
+        analysis_lines.append("🔍 SE DETECTARON IPs PRIVADAS: La ruta pasa por redes internas/NAT.")
     
     # Mostrar información de cada salto
-    analysis += "\n• Detalle de saltos:\n"
+    analysis_lines.append("\n• Detalle de saltos:")
     for hop in hops:
         status = "🟢" if hop['timeouts'] == 0 else "🔴" if hop['timeouts'] == 3 else "🟡"
         private_flag = " (Privada)" if hop['is_private'] else ""
@@ -402,23 +449,40 @@ def analyze_traceroute_output(output, target):
         if hop['hop'] in max_latency_by_hop and max_latency_by_hop[hop['hop']]['latency'] > 0:
             latency_info = f" [Máx: {max_latency_by_hop[hop['hop']]['latency']}ms]"
         
-        analysis += f"  {status} Salto {hop['hop']}: {hop['host']}{private_flag}{latency_info}\n"
+        analysis_lines.append(f"  {status} Salto {hop['hop']}: {hop['host']}{private_flag}{latency_info}")
         if hop['timeouts'] > 0:
-            analysis += f"     Timeouts: {hop['timeouts']}/3 intentos\n"
+            analysis_lines.append(f"     Timeouts: {hop['timeouts']}/3 intentos")
     
-    analysis += "\n• Recomendaciones:\n"
+    analysis_lines.append("\n• Recomendaciones:")
     if max_latency > 200:
-        analysis += "  - Latencia muy alta. Considerar proveedor de internet alternativo.\n"
+        analysis_lines.append("  - Latencia muy alta. Considerar proveedor de internet alternativo.")
     if timeout_hops > 0:
-        analysis += "  - Timeouts detectados. Puede indicar filtrado de paquetes o congestión.\n"
+        analysis_lines.append("  - Timeouts detectados. Puede indicar filtrado de paquetes o congestión.")
     
-    analysis += "--------------------------------\n"
-    return analysis
+    analysis_lines.append(f"{Fore.CYAN}{'-'*40}{Style.RESET_ALL}")
 
-def analyze_whois_output(output, domain):
-    #Analiza la salida de WHOIS y proporciona información resumida
-    analysis = "\n--- ANÁLISIS WHOIS ---\n"
+    return "\n".join(analysis_lines), metrics
+
+def analyze_whois_output(output: str, domain: str) -> Tuple[str, Dict[str, Any]]:
+    """Analiza la salida de WHOIS y devuelve análisis y métricas"""
     
+    analysis_lines = []
+    analysis_lines.append(f"{Fore.CYAN}--- ANÁLISIS WHOIS: {domain} ---{Style.RESET_ALL}")
+
+    # Métricas estructuradas
+    metrics = {
+        "domain": domain,
+        "creation_date": None,
+        "expiration_date": None,
+        "updated_date": None,
+        "registrar": None,
+        "name_servers": [],
+        "domain_age_years": None,
+        "days_until_expiration": None,
+        "success": False,
+        "timestamp": datetime.now().isoformat()
+    }
+
     lines = output.split('\n')
     
     # Buscar información importante
@@ -430,18 +494,20 @@ def analyze_whois_output(output, domain):
     
     for line in lines:
         line = line.strip()
-        
-        # Fechas de creación (manejar formato datetime)
-        if 'Fecha de creación:' in line:
-            # Buscar patrones de fecha en diferentes formatos
+    
+        # Fechas de creación - manejar múltiples formatos
+        if 'creation_date' in line.lower() or 'fecha de creación' in line.lower():
+            # Buscar patrones de fecha
             date_patterns = [
-                r'(\d{4}[-/]\d{1,2}[-/]\d{1,2})',  # YYYY-MM-DD
-                r'datetime\.datetime\((\d{4}), (\d{1,2}), (\d{1,2})',  # datetime(1997, 9, 15
-                r'(\d{4}-\d{2}-\d{2})'  # Formato ISO
+                r'(\d{4}[-/]\d{1,2}[-/]\d{1,2})',
+                r'(\d{1,2}[-/]\d{1,2}[-/]\d{4})',
+                r'(\d{4}-\d{2}-\d{2})',
+                r'(\d{2}-\w{3}-\d{4})',  # 15-Sep-1997
+                r'datetime\.datetime\((\d{4}), (\d{1,2}), (\d{1,2})'
             ]
-            
+        
             for pattern in date_patterns:
-                match = re.search(pattern, line)
+                match = re.search(pattern, line, re.IGNORECASE)
                 if match:
                     if 'datetime' in pattern:
                         # Formato: datetime.datetime(1997, 9, 15, 4, 0)
@@ -449,6 +515,7 @@ def analyze_whois_output(output, domain):
                         creation_date = f"{year}-{month.zfill(2)}-{day.zfill(2)}"
                     else:
                         creation_date = match.group(1)
+                    metrics["creation_date"] = creation_date
                     break
         
         # Fecha de expiración
@@ -467,6 +534,7 @@ def analyze_whois_output(output, domain):
                         expiration_date = f"{year}-{month.zfill(2)}-{day.zfill(2)}"
                     else:
                         expiration_date = match.group(1)
+                    metrics["expiration_date"] = expiration_date
                     break
         
         # Última actualización
@@ -485,184 +553,205 @@ def analyze_whois_output(output, domain):
                         updated_date = f"{year}-{month.zfill(2)}-{day.zfill(2)}"
                     else:
                         updated_date = match.group(1)
+                    metrics["updated_date"] = updated_date
                     break
         
         # Registrador
         elif 'Registrador:' in line:
             registrar = line.split('Registrador:')[-1].strip()
+            metrics["registrar"] = registrar
         
         # Servidores de nombres
         elif re.match(r'^\s*-\s+[A-Za-z0-9.-]+\.[A-Za-z]{2,}', line):
             ns = line.strip().lstrip('-').strip()
             if ns and ns not in name_servers:
                 name_servers.append(ns)
+                metrics["name_servers"].append(ns)
     
-    # Análisis de fechas
-    analysis += "• Información del dominio:\n"
-    if creation_date:
-        analysis += f"  - Creación: {creation_date}\n"
-    if expiration_date:
-        analysis += f"  - Expiración: {expiration_date}\n"
-        # Calcular días hasta expiración
+    # Calcular métricas adicionales
+    if metrics["creation_date"]:
         try:
-            from datetime import datetime
-            exp_date = datetime.strptime(expiration_date, '%Y-%m-%d')
-            days_left = (exp_date - datetime.now()).days
-            analysis += f"  - Días hasta expiración: {days_left}\n"
-            if days_left < 30:
-                analysis += "  ⚠️  ¡El dominio expira pronto!\n"
-            elif days_left > 3650:  # 10 años
-                analysis += "  ✅ Dominio registrado por mucho tiempo\n"
+            creation_dt = datetime.strptime(metrics["creation_date"], '%Y-%m-%d')
+            domain_age = (datetime.now() - creation_dt).days // 365
+            metrics["domain_age_years"] = domain_age
         except:
             pass
-    if updated_date:
-        analysis += f"  - Última actualización: {updated_date}\n"
+    
+    if metrics["expiration_date"]:
         try:
-            from datetime import datetime
+            expiration_dt = datetime.strptime(metrics["expiration_date"], '%Y-%m-%d')
+            days_until_exp = (expiration_dt - datetime.now()).days
+            metrics["days_until_expiration"] = days_until_exp
+            metrics["success"] = True
+        except:
+            pass
+    
+    # Generar análisis en texto
+    analysis_lines.append("• Información del dominio:")
+    if creation_date:
+        analysis_lines.append(f"  - Creación: {creation_date}")
+    if expiration_date:
+        analysis_lines.append(f"  - Expiración: {expiration_date}")
+        if metrics["days_until_expiration"] is not None:
+            days_left = metrics["days_until_expiration"]
+            analysis_lines.append(f"  - Días hasta expiración: {days_left}")
+            if days_left < 30:
+                analysis_lines.append(f"  {Fore.RED}⚠️  ¡El dominio expira pronto!{Style.RESET_ALL}")
+            elif days_left > 3650:
+                analysis_lines.append(f"  {Fore.GREEN}✅ Dominio registrado por mucho tiempo{Style.RESET_ALL}")
+    if updated_date:
+        analysis_lines.append(f"  - Última actualización: {updated_date}")
+        try:
             update_date = datetime.strptime(updated_date, '%Y-%m-%d')
             days_since_update = (datetime.now() - update_date).days
             if days_since_update > 365:
-                analysis += f"  ⚠️  Sin actualizaciones hace {days_since_update} días\n"
+                analysis_lines.append(f"  {Fore.YELLOW}⚠️  Sin actualizaciones hace {days_since_update} días{Style.RESET_ALL}")
         except:
             pass
     
     if registrar:
-        analysis += f"• Registrador: {registrar}\n"
-        # Análisis del registrador
+        analysis_lines.append(f"• Registrador: {registrar}")
         if 'markmonitor' in registrar.lower():
-            analysis += "  ✅ Registrador profesional (empresas grandes)\n"
+            analysis_lines.append(f"  {Fore.GREEN}✅ Registrador profesional (empresas grandes){Style.RESET_ALL}")
         elif 'godaddy' in registrar.lower() or 'namecheap' in registrar.lower():
-            analysis += "  ℹ️  Registrador popular (uso general)\n"
+            analysis_lines.append(f"  {Fore.BLUE}ℹ️  Registrador popular (uso general){Style.RESET_ALL}")
     
     # Análisis de servidores de nombres
     if name_servers:
-        analysis += f"• Servidores DNS ({len(name_servers)}):\n"
+        analysis_lines.append(f"• Servidores DNS ({len(name_servers)}):")
         for ns in sorted(name_servers)[:4]:
-            analysis += f"  - {ns}\n"
+            analysis_lines.append(f"  - {ns}")
         if len(name_servers) > 4:
-            analysis += f"  - ... y {len(name_servers) - 4} más\n"
+            analysis_lines.append(f"  - ... y {len(name_servers) - 4} más")
         
-        # Verificar configuración DNS
         if len(name_servers) >= 2:
-            analysis += "  ✅ Configuración redundante (buena práctica)\n"
+            analysis_lines.append(f"  {Fore.GREEN}✅ Configuración redundante (buena práctica){Style.RESET_ALL}")
         
         # Verificar si usa servidores propios
         domain_clean = domain.lower().replace('www.', '').split('.')[0]
         own_ns = sum(1 for ns in name_servers if domain_clean in ns.lower())
         
         if own_ns >= len(name_servers) / 2:
-            analysis += "  ✅ Usa servidores propios (configuración profesional)\n"
+            analysis_lines.append(f"  {Fore.GREEN}✅ Usa servidores propios (configuración profesional){Style.RESET_ALL}")
         else:
-            analysis += "  ℹ️  Usa servidores de terceros\n"
+            analysis_lines.append(f"  {Fore.BLUE}ℹ️  Usa servidores de terceros{Style.RESET_ALL}")
     
     # Estado del dominio
-    analysis += "• Estado del dominio:\n"
-    if creation_date:
-        try:
-            from datetime import datetime
-            create_date = datetime.strptime(creation_date, '%Y-%m-%d')
-            domain_age = (datetime.now() - create_date).days // 365
-            analysis += f"  - Edad aproximada: {domain_age} años\n"
-            if domain_age > 10:
-                analysis += "  ✅ Dominio antiguo (mayor confianza)\n"
-        except:
-            pass
+    analysis_lines.append("• Estado del dominio:")
+    if metrics["domain_age_years"] is not None:
+        domain_age = metrics["domain_age_years"]
+        analysis_lines.append(f"  - Edad aproximada: {domain_age} años")
+        if domain_age > 10:
+            analysis_lines.append(f"  {Fore.GREEN}✅ Dominio antiguo (mayor confianza){Style.RESET_ALL}")
     
     # Recomendaciones de seguridad
-    analysis += "\n• Recomendaciones:\n"
-    analysis += "  - Verificar periodicamente los datos WHOIS\n"
-    analysis += "  - Considerar protección de privacidad del dominio\n"
-    analysis += "  - Mantener actualizada la información de contacto\n"
+    analysis_lines.append("\n• Recomendaciones:")
+    analysis_lines.append("  - Verificar periodicamente los datos WHOIS")
+    analysis_lines.append("  - Considerar protección de privacidad del dominio")
+    analysis_lines.append("  - Mantener actualizada la información de contacto")
     
-    analysis += "--------------------------------\n"
-    return analysis
+    analysis_lines.append(f"{Fore.CYAN}{'-'*40}{Style.RESET_ALL}")
 
-def analyze_dns_output(output, domain):
-    """Analiza la salida de DNS Lookup y explica los registros."""
-    analysis = "\n--- ANÁLISIS DNS ---\n"
+    return "\n".join(analysis_lines), metrics
+
+def analyze_dns_output(output, domain, record_type='A'):
+    """
+    Analiza la salida de DNS lookup y proporciona información resumida
     
+    Returns:
+        tuple: (analysis_text, metrics)
+    """
+    analysis_lines = []
+    analysis_lines.append(f"{Fore.CYAN}--- ANÁLISIS DNS: {domain} ({record_type}) ---{Style.RESET_ALL}")
+
+    metrics = {
+        'domain': domain,
+        'record_type': record_type,
+        'records_found': 0,
+        'ips': [],
+        'ttl_min': None,
+        'ttl_avg': None,
+        'ttl_max': None,
+        'response_time': None,
+        'success': False,
+        'timestamp': datetime.now().isoformat()
+    }
+
     lines = output.split('\n')
-    
-    # Detectar tipos de registros
-    ipv4_addresses = []
-    ipv6_addresses = []
-    name_servers = []
-    is_authoritative = "no autoritativa" not in output.lower()
+    ip_addresses = []
+    ttl_values = []
     
     for line in lines:
         line = line.strip()
         
-        # Detectar direcciones IPv4 (A records)
-        if re.match(r'^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$', line):
-            if line not in ipv4_addresses:
-                ipv4_addresses.append(line)
+        # Buscar IP addresses (IPv4 e IPv6)
+        ipv4_match = re.search(r'\b(?:\d{1,3}\.){3}\d{1,3}\b', line)
+        ipv6_match = re.search(r'([0-9a-fA-F:]+:+)+[0-9a-fA-F]+', line)  # IPv6 básico
         
-        # Detectar direcciones IPv6 (AAAA records) - patrones más específicos
-        elif re.match(r'^[0-9a-fA-F:]+:[0-9a-fA-F:]+$', line) and line.count(':') >= 2:
-            if line not in ipv6_addresses:
-                ipv6_addresses.append(line)
+        if ipv4_match:
+            ip = ipv4_match.group()
+            # Excluir IPs locales/common
+            if not ip.startswith(('10.', '192.168.', '172.16.', '172.17.', '172.18.', '172.19.', 
+                                '172.20.', '172.21.', '172.22.', '172.23.', '172.24.', '172.25.',
+                                '172.26.', '172.27.', '172.28.', '172.29.', '172.30.', '172.31.')):
+                if ip not in ip_addresses:
+                    ip_addresses.append(ip)
         
-        # Detectar servidores de nombres en respuestas de nslookup
-        elif ('internet address' in line.lower() or 'addresses:' in line.lower()) and \
-             not line.startswith('Server:') and not line.startswith('Address:'):
-            # Extraer IPs de líneas como "Addresses:  2800:3f0:4003:c03::71"
-            ips = re.findall(r'(?:[0-9]{1,3}\.){3}[0-9]{1,3}|[0-9a-fA-F:]+:[0-9a-fA-F:]+', line)
-            for ip in ips:
-                if ':' in ip and ip not in ipv6_addresses:
-                    ipv6_addresses.append(ip)
-                elif '.' in ip and ip not in ipv4_addresses:
-                    ipv4_addresses.append(ip)
+        if ipv6_match:
+            ip = ipv6_match.group()
+            # Excluir IPs locales
+            if not ip.startswith(('fe80:', '::1', 'fc00:', 'fd00:')):
+                if ip not in ip_addresses:
+                    ip_addresses.append(ip)
+        
+        # Buscar TTL values
+        ttl_match = re.search(r'TTL\s*=\s*(\d+)', line, re.IGNORECASE)
+        if ttl_match:
+            ttl = int(ttl_match.group(1))
+            ttl_values.append(ttl)
     
-    # Análisis de autoritatividad
-    analysis += f"• Respuesta: {'Autoritativa' if is_authoritative else 'No autoritativa'}\n"
-    if not is_authoritative:
-        analysis += "  ℹ️  Información desde caché DNS local\n"
+    metrics['ips'] = ip_addresses
+    metrics['records_found'] = len(ip_addresses)
+    metrics['success'] = metrics['records_found'] > 0
     
-    # Análisis de registros A (IPv4)
-    if ipv4_addresses:
-        analysis += f"• Registros A (IPv4): {len(ipv4_addresses)} direcciones\n"
-        for ip in sorted(ipv4_addresses)[:3]:
-            analysis += f"  - {ip}\n"
-        if len(ipv4_addresses) > 3:
-            analysis += f"  - ... y {len(ipv4_addresses) - 3} más\n"
+    if ttl_values:
+        metrics['ttl_min'] = min(ttl_values)
+        metrics['ttl_max'] = max(ttl_values)
+        metrics['ttl_avg'] = sum(ttl_values) / len(ttl_values)
+
+    # Generar análisis
+    analysis_lines.append(f"• Dominio: {domain}")
+    analysis_lines.append(f"• Tipo de registro: {record_type}")
+    analysis_lines.append(f"• Registros encontrados: {metrics['records_found']}")
+    
+    if metrics['records_found'] > 0:
+        analysis_lines.append(f"• Direcciones IP encontradas:")
+        for ip in metrics['ips'][:5]:
+            analysis_lines.append(f"  - {ip}")
+        if len(metrics['ips']) > 5:
+            analysis_lines.append(f"  - ... y {len(metrics['ips']) - 5} más")
         
-        # Análisis de distribución de IPs
-        if len(ipv4_addresses) > 1:
-            analysis += "  ✅ Múltiples IPs (balanceo de carga/geo-distribución)\n"
+        if metrics['ttl_avg']:
+            analysis_lines.append(f"• TTL: min={metrics['ttl_min']}s, avg={metrics['ttl_avg']:.1f}s, max={metrics['ttl_max']}s")
             
-            # Verificar si están en el mismo rango
-            first_octets = [ip.split('.')[0] for ip in ipv4_addresses]
-            if len(set(first_octets)) == 1:
-                analysis += "  📍 Mismo rango de IPs (probable mismo datacenter)\n"
-            else:
-                analysis += "  🌍 Diferentes rangos (geo-distribución)\n"
+            # Análisis de TTL
+            if metrics['ttl_avg'] < 300:
+                analysis_lines.append(f"  {Fore.YELLOW}⚠️  TTL bajo - Puede indicar CDN o balanceo de carga{Style.RESET_ALL}")
+            elif metrics['ttl_avg'] > 86400:
+                analysis_lines.append(f"  {Fore.GREEN}✅ TTL alto - Configuración estable{Style.RESET_ALL}")
     
-    # Análisis de registros AAAA (IPv6)
-    if ipv6_addresses:
-        analysis += f"• Registros AAAA (IPv6): {len(ipv6_addresses)} direcciones\n"
-        for ip in sorted(ipv6_addresses)[:2]:
-            analysis += f"  - {ip}\n"
-        analysis += "  ✅ Soporte para IPv6 (conexiones modernas)\n"
     else:
-        analysis += "• IPv6: No detectado\n"
-        analysis += "  ℹ️  Considerar implementar IPv6\n"
-    
-    # Análisis de disponibilidad
-    analysis += "• Disponibilidad:\n"
-    if ipv4_addresses:
-        analysis += "  ✅ Servicio accesible via IPv4\n"
-    if ipv6_addresses:
-        analysis += "  ✅ Servicio accesible via IPv6\n"
+        analysis_lines.append(f"{Fore.YELLOW}• No se encontraron registros {record_type}{Style.RESET_ALL}")
     
     # Recomendaciones
-    analysis += "\n• Recomendaciones:\n"
-    if ipv4_addresses and ipv6_addresses:
-        analysis += "  ✅ Excelente: Soporte dual-stack (IPv4 + IPv6)\n"
-    elif len(ipv4_addresses) >= 3:
-        analysis += "  ✅ Bueno: Múltiples IPs IPv4 para redundancia\n"
+    analysis_lines.append(f"\n{Fore.CYAN}• Recomendaciones:{Style.RESET_ALL}")
+    if record_type == 'A' and metrics['records_found'] > 1:
+        analysis_lines.append("  - Múltiples IPs detectadas: posible balanceo de carga o CDN")
+    if metrics['records_found'] == 0:
+        analysis_lines.append("  - Intentar con otros tipos de registro (AAAA, MX, NS, TXT)")
     
-    if len(ipv4_addresses) > 5:
-        analysis += "  🚀 Excelente: Alta disponibilidad con muchas IPs\n"
-    
-    analysis += "--------------------------------\n"
-    return analysis
+    analysis_lines.append(f"{Fore.CYAN}{'-'*50}{Style.RESET_ALL}")
+
+    return "\n".join(analysis_lines), metrics
+
+

@@ -1,0 +1,482 @@
+{
+  "google.com_ping": [
+    {
+      "target": "google.com",
+      "timestamp": "2025-09-19T23:12:13.303116",
+      "sent": 0,
+      "received": 0,
+      "lost": 0,
+      "loss_percent": 0.0,
+      "rtt_min": 0.0,
+      "rtt_avg": 0.0,
+      "rtt_max": 0.0,
+      "rtt_stddev": 0.0,
+      "ttl": 99,
+      "reachable": true,
+      "sample_times": [],
+      "tool_type": "ping"
+    },
+    {
+      "target": "google.com",
+      "timestamp": "2025-09-20T00:14:12.228713",
+      "sent": 0,
+      "received": 0,
+      "lost": 0,
+      "loss_percent": 0.0,
+      "rtt_min": 0.0,
+      "rtt_avg": 0.0,
+      "rtt_max": 0.0,
+      "rtt_stddev": 0.0,
+      "ttl": 99,
+      "reachable": true,
+      "sample_times": [],
+      "tool_type": "ping"
+    }
+  ],
+  "google.com_traceroute": [
+    {
+      "target": "google.com",
+      "total_hops": 15,
+      "timeout_hops": 4,
+      "private_ips": 10,
+      "max_latency": 505.0,
+      "hops": [
+        {
+          "hop": 1,
+          "times": [
+            "10",
+            "ms",
+            "6"
+          ],
+          "host": "10.176.137.120",
+          "ip": "10.176.137.120",
+          "is_private": true,
+          "timeouts": 0
+        },
+        {
+          "hop": 2,
+          "times": [
+            "*",
+            "*",
+            "*"
+          ],
+          "host": "Tiempo de espera agotado para esta solicitud.",
+          "ip": "Tiempo de espera agotado para esta solicitud.",
+          "is_private": false,
+          "timeouts": 3
+        },
+        {
+          "hop": 3,
+          "times": [
+            "176",
+            "ms",
+            "101"
+          ],
+          "host": "172.18.86.201",
+          "ip": "172.18.86.201",
+          "is_private": true,
+          "timeouts": 0
+        },
+        {
+          "hop": 4,
+          "times": [
+            "249",
+            "ms",
+            "206"
+          ],
+          "host": "172.31.237.42",
+          "ip": "172.31.237.42",
+          "is_private": true,
+          "timeouts": 0
+        },
+        {
+          "hop": 5,
+          "times": [
+            "*",
+            "*",
+            "146"
+          ],
+          "host": "172.18.86.186",
+          "ip": "172.18.86.186",
+          "is_private": true,
+          "timeouts": 2
+        },
+        {
+          "hop": 6,
+          "times": [
+            "140",
+            "ms",
+            "304"
+          ],
+          "host": "172.16.66.199",
+          "ip": "172.16.66.199",
+          "is_private": true,
+          "timeouts": 0
+        },
+        {
+          "hop": 7,
+          "times": [
+            "*",
+            "*",
+            "*"
+          ],
+          "host": "Tiempo de espera agotado para esta solicitud.",
+          "ip": "Tiempo de espera agotado para esta solicitud.",
+          "is_private": false,
+          "timeouts": 3
+        },
+        {
+          "hop": 8,
+          "times": [
+            "*",
+            "*",
+            "*"
+          ],
+          "host": "Tiempo de espera agotado para esta solicitud.",
+          "ip": "Tiempo de espera agotado para esta solicitud.",
+          "is_private": false,
+          "timeouts": 3
+        },
+        {
+          "hop": 9,
+          "times": [
+            "505",
+            "ms",
+            "201"
+          ],
+          "host": "172.18.86.130",
+          "ip": "172.18.86.130",
+          "is_private": true,
+          "timeouts": 0
+        },
+        {
+          "hop": 10,
+          "times": [
+            "412",
+            "ms",
+            "407"
+          ],
+          "host": "192.168.104.158",
+          "ip": "192.168.104.158",
+          "is_private": true,
+          "timeouts": 0
+        },
+        {
+          "hop": 11,
+          "times": [
+            "203",
+            "ms",
+            "103"
+          ],
+          "host": "172.31.197.113",
+          "ip": "172.31.197.113",
+          "is_private": true,
+          "timeouts": 0
+        },
+        {
+          "hop": 12,
+          "times": [
+            "102",
+            "ms",
+            "99"
+          ],
+          "host": "172.31.215.14",
+          "ip": "172.31.215.14",
+          "is_private": true,
+          "timeouts": 0
+        },
+        {
+          "hop": 13,
+          "times": [
+            "97",
+            "ms",
+            "101"
+          ],
+          "host": "192.168.8.133",
+          "ip": "192.168.8.133",
+          "is_private": true,
+          "timeouts": 0
+        },
+        {
+          "hop": 14,
+          "times": [
+            "196",
+            "ms",
+            "99"
+          ],
+          "host": "209.85.148.46",
+          "ip": "209.85.148.46",
+          "is_private": false,
+          "timeouts": 0
+        },
+        {
+          "hop": 15,
+          "times": [
+            "112",
+            "ms",
+            "100"
+          ],
+          "host": "64.233.174.147",
+          "ip": "64.233.174.147",
+          "is_private": false,
+          "timeouts": 0
+        }
+      ],
+      "slow_hops": [
+        {
+          "hop": 3,
+          "latency": 176.0,
+          "host": "172.18.86.201"
+        },
+        {
+          "hop": 4,
+          "latency": 249.0,
+          "host": "172.31.237.42"
+        },
+        {
+          "hop": 5,
+          "latency": 146.0,
+          "host": "172.18.86.186"
+        },
+        {
+          "hop": 6,
+          "latency": 304.0,
+          "host": "172.16.66.199"
+        },
+        {
+          "hop": 9,
+          "latency": 505.0,
+          "host": "172.18.86.130"
+        },
+        {
+          "hop": 10,
+          "latency": 412.0,
+          "host": "192.168.104.158"
+        },
+        {
+          "hop": 11,
+          "latency": 203.0,
+          "host": "172.31.197.113"
+        },
+        {
+          "hop": 12,
+          "latency": 102.0,
+          "host": "172.31.215.14"
+        },
+        {
+          "hop": 13,
+          "latency": 101.0,
+          "host": "192.168.8.133"
+        },
+        {
+          "hop": 14,
+          "latency": 196.0,
+          "host": "209.85.148.46"
+        },
+        {
+          "hop": 15,
+          "latency": 112.0,
+          "host": "64.233.174.147"
+        }
+      ],
+      "reachable": false,
+      "timestamp": "2025-09-19T23:14:20.431590",
+      "tool_type": "traceroute"
+    }
+  ],
+  "google.com_whois": [
+    {
+      "domain": "google.com",
+      "creation_date": "1997-09-15",
+      "expiration_date": "2028-09-14",
+      "updated_date": "2019-09-09",
+      "registrar": "MarkMonitor, Inc.",
+      "name_servers": [
+        "NS1.GOOGLE.COM",
+        "NS2.GOOGLE.COM",
+        "NS3.GOOGLE.COM",
+        "NS4.GOOGLE.COM"
+      ],
+      "domain_age_years": 28,
+      "days_until_expiration": 1090,
+      "success": true,
+      "timestamp": "2025-09-19T23:39:25.760430",
+      "tool_type": "whois"
+    },
+    {
+      "domain": "google.com",
+      "creation_date": "1997-09-15",
+      "expiration_date": "2028-09-14",
+      "updated_date": "2019-09-09",
+      "registrar": "MarkMonitor, Inc.",
+      "name_servers": [
+        "NS1.GOOGLE.COM",
+        "NS2.GOOGLE.COM",
+        "NS3.GOOGLE.COM",
+        "NS4.GOOGLE.COM"
+      ],
+      "domain_age_years": 28,
+      "days_until_expiration": 1090,
+      "success": true,
+      "timestamp": "2025-09-19T23:56:35.123493",
+      "tool_type": "whois"
+    }
+  ],
+  "172.217.192.138_geoip": [
+    {
+      "ip": "172.217.192.138",
+      "city": "Mountain View",
+      "region": "California",
+      "country": "United States",
+      "country_code": "US",
+      "latitude": 38.00881,
+      "longitude": -122.11746,
+      "organization": "GOOGLE",
+      "asn": "AS15169",
+      "success": true,
+      "api_used": "ipapi.co",
+      "timestamp": "2025-09-20T00:14:31.691442",
+      "tool_type": "geoip"
+    }
+  ],
+  "google.com_dns_lookup": [
+    {
+      "domain": "google.com",
+      "record_type": "A",
+      "records_found": 7,
+      "ips": [
+        "10.176.137.120",
+        "142.251.0.102",
+        "142.251.0.139",
+        "142.251.0.138",
+        "142.251.0.113",
+        "142.251.0.101",
+        "142.251.0.100"
+      ],
+      "ttl_min": null,
+      "ttl_avg": null,
+      "ttl_max": null,
+      "response_time": null,
+      "success": true,
+      "timestamp": "2025-09-20T00:52:08.519218",
+      "tool_type": "dns_lookup"
+    },
+    {
+      "domain": "google.com",
+      "record_type": "A",
+      "records_found": 7,
+      "ips": [
+        "10.176.137.120",
+        "64.233.186.101",
+        "64.233.186.102",
+        "64.233.186.138",
+        "64.233.186.113",
+        "64.233.186.100",
+        "64.233.186.139"
+      ],
+      "ttl_min": null,
+      "ttl_avg": null,
+      "ttl_max": null,
+      "response_time": null,
+      "success": true,
+      "timestamp": "2025-09-20T00:53:31.741488",
+      "tool_type": "dns_lookup"
+    },
+    {
+      "domain": "google.com",
+      "record_type": "A",
+      "records_found": 7,
+      "ips": [
+        "10.176.137.120",
+        "64.233.186.139",
+        "64.233.186.100",
+        "64.233.186.113",
+        "64.233.186.138",
+        "64.233.186.102",
+        "64.233.186.101"
+      ],
+      "ttl_min": null,
+      "ttl_avg": null,
+      "ttl_max": null,
+      "response_time": null,
+      "success": true,
+      "timestamp": "2025-09-20T00:55:37.988751",
+      "tool_type": "dns_lookup"
+    },
+    {
+      "domain": "google.com",
+      "record_type": "A",
+      "records_found": 7,
+      "ips": [
+        "10.176.137.120",
+        "108.177.123.102",
+        "108.177.123.100",
+        "108.177.123.113",
+        "108.177.123.138",
+        "108.177.123.139",
+        "108.177.123.101"
+      ],
+      "ttl_min": null,
+      "ttl_avg": null,
+      "ttl_max": null,
+      "response_time": null,
+      "success": true,
+      "timestamp": "2025-09-20T01:00:37.593312",
+      "tool_type": "dns_lookup"
+    },
+    {
+      "domain": "google.com",
+      "record_type": "A",
+      "records_found": 7,
+      "ips": [
+        "10.176.137.120",
+        "108.177.123.101",
+        "108.177.123.139",
+        "108.177.123.138",
+        "108.177.123.113",
+        "108.177.123.100",
+        "108.177.123.102"
+      ],
+      "ttl_min": null,
+      "ttl_avg": null,
+      "ttl_max": null,
+      "response_time": null,
+      "success": true,
+      "timestamp": "2025-09-20T01:01:59.397868",
+      "tool_type": "dns_lookup"
+    },
+    {
+      "domain": "google.com",
+      "record_type": "AAAA",
+      "records_found": 1,
+      "ips": [
+        "10.176.137.120"
+      ],
+      "ttl_min": null,
+      "ttl_avg": null,
+      "ttl_max": null,
+      "response_time": null,
+      "success": true,
+      "timestamp": "2025-09-20T01:03:50.507449",
+      "tool_type": "dns_lookup"
+    },
+    {
+      "domain": "google.com",
+      "record_type": "AAAA",
+      "records_found": 4,
+      "ips": [
+        "2800:3f0:4003:c0f::66",
+        "2800:3f0:4003:c0f::8a",
+        "2800:3f0:4003:c0f::71",
+        "2800:3f0:4003:c0f::8b"
+      ],
+      "ttl_min": null,
+      "ttl_avg": null,
+      "ttl_max": null,
+      "response_time": null,
+      "success": true,
+      "timestamp": "2025-09-20T01:15:18.791419",
+      "tool_type": "dns_lookup"
+    }
+  ]
+}

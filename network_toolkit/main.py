@@ -3,13 +3,21 @@
 Script principal de Network Toolkit - Punto de entrada de la aplicación
 """
 
+import json
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict
+from network_toolkit.history_tools import network_history
 import sys
 import platform
 from colorama import Fore, Style
+import re
 
 from .ssl_tools import display_ssl_analysis, get_ssl_certificate, analyze_ssl_certificate, check_ssl_security
-
 from .recon_tools import dns_subdomain_enumeration, display_subdomain_results
+from network_toolkit.whois_tools import get_whois_info
+from network_toolkit.analysis_tools import analyze_whois_output
+
 
 from .dns_tools import (
     dns_lookup,
@@ -46,65 +54,173 @@ from .analysis_tools import (
     analyze_whois_output
 )
 
+def save_network_report(target: str, tool_type: str, raw_output: str, analysis: str, metrics: Dict[str, Any]) -> None:
+    """
+    Guarda un reporte de cualquier herramienta de red
+    """
+    try:
+        # Obtener la ruta base del paquete
+        base_dir = Path(__file__).parent
+        reports_dir = base_dir / "data" / "network_reports"
+        reports_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Crear nombre de archivo seguro
+        safe_target = re.sub(r'[<>:"/\\|?*]', '_', target)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = reports_dir / f"{tool_type}_report_{safe_target}_{timestamp}.txt"
+        
+        with open(filename, "w", encoding="utf-8") as f:
+            f.write(f"Reporte de {tool_type.upper()} - {target}\n")
+            f.write(f"Generado: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write("=" * 50 + "\n\n")
+            
+            f.write("SALIDA CRUDA:\n")
+            f.write("=" * 30 + "\n")
+            f.write(raw_output + "\n\n")
+            
+            f.write("ANÁLISIS:\n")
+            f.write("=" * 30 + "\n")
+            # Remover códigos de color para el archivo de texto
+            clean_analysis = re.sub(r'\x1b\[[0-9;]*m', '', analysis)
+            f.write(clean_analysis + "\n\n")
+            
+            f.write("MÉTRICAS (JSON):\n")
+            f.write("=" * 30 + "\n")
+            f.write(json.dumps(metrics, indent=2) + "\n")
+        
+        print(f"{Fore.GREEN}✅ Reporte guardado en: {filename}{Style.RESET_ALL}")
+        
+    except Exception as e:
+        print(f"{Fore.RED}❌ Error guardando reporte: {e}{Style.RESET_ALL}")
+
 def handle_ping_option(current_os):
-    # Maneja la opción de ping
-    target = input("Introduce el objetivo (ej. google.com): ").strip()
+    target = input(f"{Fore.YELLOW}Introduce el objetivo (ej. google.com): {Style.RESET_ALL}").strip()
 
     # Validar que sea un objetivo válido (IP o dominio)
     if not is_valid_target(target):
         print(f"{Fore.RED}[!] Objetivo no válido. Debe ser una IP o dominio válido.{Style.RESET_ALL}")
         return
+    
+    # Preguntar por número de paquetes
+    try:
+        count = int(input(f"{Fore.YELLOW}Número de paquetes (default 4): {Style.RESET_ALL}") or "4")
+    except ValueError:
+        count = 4
+        print(f"{Fore.YELLOW}Usando valor por defecto: 4 paquetes{Style.RESET_ALL}")
 
-    output = ping_target(target, current_os)
-    print(f"\n[*] Resultados de Ping para {target}:\n{output}")
-    # Usar directamente la función importada
-    analysis = analyse_ping_output(output, target)
-    print(analysis)
+    print(f"\n{Fore.CYAN}Realizando ping a {target}...{Style.RESET_ALL}")
+    
+    output = ping_target(target, current_os, count)
+    print(f"\n{Fore.CYAN}Salida cruda:{Style.RESET_ALL}")
+    print(output)
+    
+    # Usar la nueva función que devuelve análisis y métricas
+    analysis, metrics = analyse_ping_output(output, target)
+    print(f"\n{analysis}")
+    
+    # Guardar en historial (nuevo sistema)
+    if network_history.save_result(target, "ping", metrics):
+        print(f"{Fore.GREEN}✅ Resultados guardados en historial{Style.RESET_ALL}")
+    else:
+        print(f"{Fore.YELLOW}⚠️  No se pudo guardar en historial{Style.RESET_ALL}")
+    
+    # Preguntar si guardar reporte
+    save_report = input(f"\n{Fore.YELLOW}¿Desea guardar un reporte completo? (s/N): {Style.RESET_ALL}").lower()
+    if save_report == "s":
+        save_network_report(target, "ping", output, analysis, metrics)
 
 def handle_traceroute_option(current_os):
     # Maneja la opción de traceroute
-    target = input("Introduce el objetivo (ej. google.com): ").strip()
+    target = input(f"{Fore.YELLOW}Introduce el objetivo (ej. google.com): {Style.RESET_ALL}").strip()
     
     output = traceroute_target(target, current_os)
-    analysis = analyze_traceroute_output(output, target)
+    analysis, metrics = analyze_traceroute_output(output, target)  # Cambiada para devolver métricas también
     print(analysis)
+    
+    # Guardar en historial
+    if network_history.save_result(target, "traceroute", metrics):
+        print(f"{Fore.GREEN}✅ Resultados de traceroute guardados en historial{Style.RESET_ALL}")
+    else:
+        print(f"{Fore.YELLOW}⚠️  No se pudo guardar en historial{Style.RESET_ALL}")
+    
+    # Preguntar si guardar reporte
+    save_report = input(f"\n{Fore.YELLOW}¿Desea guardar un reporte completo? (s/N): {Style.RESET_ALL}").lower()
+    if save_report == "s":
+        save_network_report(target, "traceroute", output, analysis, metrics)
 
 def handle_whois_option():
     # Maneja la opción de WHOIS
-    target = input("Introduce el objetivo (ej. google.com): ").strip()
+    target = input(f"{Fore.YELLOW}Introduce el objetivo (ej. google.com): {Style.RESET_ALL}").strip()
     
     # Validar que sea un dominio válido
     if not is_valid_domain(target):
         print(f"{Fore.RED}[!] Nombre de dominio no válido.{Style.RESET_ALL}")
         return
     
-    print(f"\n[*] Obteniendo información WHOIS para {target}...")
+    print(f"\n{Fore.CYAN}Obteniendo información WHOIS para {target}...{Style.RESET_ALL}")
     
-    output = get_whois_info(target)
-    print(f"\n[*] Resultado de WHOIS para {target}:\n{output}")
-    # Usar directamente la función importada
-    whois_analysis = analyze_whois_output(output, target)
-    print(whois_analysis)
+    # Obtener información WHOIS
+    output, metrics = get_whois_info(target)
+    print(f"\n{Fore.CYAN}Resultado de WHOIS para {target}:{Style.RESET_ALL}")
+    print(output)
+    
+    # Analizar la salida
+    analysis, enhanced_metrics = analyze_whois_output(output, target)
+    print(f"\n{analysis}")
+    
+    # Combinar métricas
+    combined_metrics = {**metrics, **enhanced_metrics}
+    
+    # Guardar en historial
+    if network_history.save_result(target, "whois", combined_metrics):
+        print(f"{Fore.GREEN}✅ Resultados de WHOIS guardados en historial{Style.RESET_ALL}")
+    else:
+        print(f"{Fore.YELLOW}⚠️  No se pudo guardar en historial{Style.RESET_ALL}")
+    
+    # Preguntar si guardar reporte
+    save_report = input(f"\n{Fore.YELLOW}¿Desea guardar un reporte completo? (s/N): {Style.RESET_ALL}").lower()
+    if save_report == "s":
+        save_network_report(target, "whois", output, analysis, combined_metrics)
 
 def handle_dns_lookup_option(current_os):
     # Maneja la opción de DNS lookup básico
-    target = input("Introduce el objetivo (ej. google.com): ").strip()
+    target = input(f"{Fore.YELLOW}Introduce el objetivo (ej. google.com): {Style.RESET_ALL}").strip()
 
     # Validar que sea un dominio válido
     if not is_valid_domain(target):
         print(f"{Fore.RED}[!] Nombre de dominio no válido.{Style.RESET_ALL}")
         return
     
-    print(f"\n[*] Obteniendo información DNS para {target}...")
+    # Preguntar por tipo de registro
+    record_type = input(f"{Fore.YELLOW}Tipo de registro (A, AAAA, MX, NS, TXT - default A): {Style.RESET_ALL}").strip().upper()
+    if not record_type:
+        record_type = "A"
+    
+    print(f"\n{Fore.CYAN}Obteniendo información DNS para {target} ({record_type})...{Style.RESET_ALL}")
 
     if current_os == "windows":
-        command = f"nslookup {target}"
+        command = f"nslookup -type={record_type} {target}"
     else:
-        command = f"dig {target}"
+        command = f"dig {target} {record_type} +short"
+    
     output = run_command(command)
-    print(f"\n[*] Resultado de DNS Lookup para {target}:\n{output}")
-    dns_analysis = analyze_dns_output(output, target)
-    print(dns_analysis)
+    print(f"\n{Fore.CYAN}Resultado de DNS Lookup para {target}:{Style.RESET_ALL}")
+    print(output)
+    
+    # Analizar resultados
+    analysis, metrics = analyze_dns_output(output, target, record_type)
+    print(f"\n{analysis}")
+    
+    # Guardar en historial
+    if network_history.save_result(target, "dns_lookup", metrics):
+        print(f"{Fore.GREEN}✅ Resultados de DNS guardados en historial{Style.RESET_ALL}")
+    else:
+        print(f"{Fore.YELLOW}⚠️  No se pudo guardar en historial{Style.RESET_ALL}")
+    
+    # Preguntar si guardar reporte
+    save_report = input(f"\n{Fore.YELLOW}¿Desea guardar un reporte completo? (s/N): {Style.RESET_ALL}").lower()
+    if save_report == "s":
+        save_network_report(target, "dns_lookup", output, analysis, metrics)
 
 def handle_professional_dns_option():
     # Maneja la opción de consulta DNS profesional
@@ -183,7 +299,7 @@ def handle_reverse_dns_lookup():
 
 def handle_geolocation_option():
     """Maneja la opción de geolocalización de IP"""
-    ip_address = input("Introduce la dirección IP a geolocalizar: ").strip()
+    ip_address = input(f"{Fore.YELLOW}Introduce la dirección IP a geolocalizar: {Style.RESET_ALL}").strip()
 
     # Validar que sea una IP válida
     if not is_valid_ip(ip_address):
@@ -191,10 +307,31 @@ def handle_geolocation_option():
         return
     
     from .network_tools import geolocate_ip, display_geolocation
-    print(f"\n[*] Geolocalizando IP {ip_address}...")
+    print(f"\n{Fore.CYAN}Geolocalizando IP {ip_address}...{Style.RESET_ALL}")
     
-    location_info = geolocate_ip(ip_address)
-    display_geolocation(location_info)
+    # Obtener información de geolocalización
+    location_info, metrics = geolocate_ip(ip_address)
+    
+    # Mostrar información
+    analysis = display_geolocation(location_info)
+    print(f"\n{analysis}")
+    
+    # Guardar en historial
+    if network_history.save_result(ip_address, "geoip", metrics):
+        print(f"{Fore.GREEN}✅ Resultados de geolocalización guardados en historial{Style.RESET_ALL}")
+    else:
+        print(f"{Fore.YELLOW}⚠️  No se pudo guardar en historial{Style.RESET_ALL}")
+    
+    # Preguntar si guardar reporte
+    save_report = input(f"\n{Fore.YELLOW}¿Desea guardar un reporte completo? (s/N): {Style.RESET_ALL}").lower()
+    if save_report == "s":
+        # Crear output para el reporte
+        output = f"Geolocalización para {ip_address}\n"
+        for key, value in location_info.items():
+            if key != 'error':
+                output += f"{key}: {value}\n"
+        
+        save_network_report(ip_address, "geoip", output, analysis, metrics)
 
 def handle_asn_analysis_option():
     """Maneja la opción de análisis ASN/BGP"""
@@ -355,6 +492,442 @@ def handle_comprehensive_subdomain_enum_option():
     display_comprehensive_results(results)
 
 
+# Nueva función para el menú de historial
+def handle_network_history_menu():
+    while True:
+        print(f"\n{Fore.CYAN}=== Historial de Network Toolkit ==={Style.RESET_ALL}")
+        print("1. Mostrar historial resumido (todos los tipos)")
+        print("2. Mostrar historial detallado de un host")
+        print("3. Mostrar historial por tipo de herramienta")
+        print("4. Borrar historial")
+        print("5. Volver al menú principal")
+        
+        opcion = input(f"{Fore.YELLOW}Seleccione una opción: {Style.RESET_ALL}")
+        
+        if opcion == "1":
+            show_network_summary()
+        elif opcion == "2":
+            show_detailed_network_history()
+        elif opcion == "3":
+            show_history_by_tool_type()
+        elif opcion == "4":
+            clear_network_history()
+        elif opcion == "5":
+            break
+        else:
+            print(f"{Fore.RED}Opción no válida{Style.RESET_ALL}")
+
+# Función para mostrar resumen de todos los tipos
+def show_network_summary():
+    """Muestra un resumen de todo el historial"""
+    summary = network_history.get_history_summary()
+    
+    if not summary:
+        print(f"{Fore.YELLOW}No hay historial guardado{Style.RESET_ALL}")
+        return
+    
+    print(f"\n{Fore.CYAN}📋 Resumen del Historial Completo:{Style.RESET_ALL}")
+    print("-" * 100)
+    print(f"{'Herramienta':<12} {'Host':<20} {'Última comprobación':<20} {'Estado':<10} {'Métricas':<30}")
+    print("-" * 100)
+    
+    for entry in summary:
+        tool_type = entry["tool_type"]
+        target = entry["target"]
+        last_check = datetime.fromisoformat(entry["last_check"]).strftime("%Y-%m-%d %H:%M") if entry["last_check"] else "N/A"
+        
+        # Estado según el tipo de herramienta
+        status = "N/A"
+        metrics_text = ""
+        
+        if tool_type == "ping":
+            status = f"{Fore.GREEN}Alcanzable{Style.RESET_ALL}" if entry.get("reachable") else f"{Fore.RED}Inalcanzable{Style.RESET_ALL}"
+            metrics = entry.get("metrics", {})
+            loss = metrics.get("loss_percent", "N/A")
+            latency = metrics.get("rtt_avg", "N/A")
+            metrics_text = f"Pérdida: {loss}%, Latencia: {latency}ms"
+        
+        elif tool_type == "traceroute":
+            status = f"{Fore.GREEN}Completado{Style.RESET_ALL}" if entry.get("reachable") else f"{Fore.YELLOW}Parcial{Style.RESET_ALL}"
+            metrics = entry.get("metrics", {})
+            hops = metrics.get("total_hops", "N/A")
+            max_latency = metrics.get("max_latency", "N/A")
+            metrics_text = f"Saltos: {hops}, Máx: {max_latency}ms"
+        
+        elif tool_type == "whois":
+            metrics = entry.get("metrics", {})
+            registrar = metrics.get("registrar", "N/A")
+            expiration = metrics.get("expiration_date", "N/A")
+            
+            if metrics.get("success", False):
+                status = f"{Fore.GREEN}Consulta exitosa{Style.RESET_ALL}"
+            else:
+                status = f"{Fore.YELLOW}Consulta parcial{Style.RESET_ALL}"
+            
+            # Acortar el registrador si es muy largo
+            if registrar and len(registrar) > 15:
+                registrar = registrar.split(',')[0]
+                if len(registrar) > 12:
+                    registrar = registrar[:12] + "..."
+            
+            metrics_text = f"Registrador: {registrar}"
+        
+        elif tool_type == "geoip":
+            metrics = entry.get("metrics", {})
+            country = metrics.get("country", "N/A")
+            city = metrics.get("city", "N/A")
+            org = metrics.get("organization", "N/A")
+            
+            if metrics.get("success", False):
+                status = f"{Fore.GREEN}Localizado{Style.RESET_ALL}"
+            else:
+                status = f"{Fore.RED}Error{Style.RESET_ALL}"
+            
+            # Mejorar la visualización del target para GeoIP
+            # Intentar mostrar el nombre del servicio en lugar de la IP
+            ip = target
+            service_name = get_service_name_from_ip(ip)  # Nueva función helper
+            display_target = service_name if service_name else ip
+            
+            # Acortar organización si es muy larga
+            if org and len(org) > 20:
+                org = org[:17] + "..."
+            
+            metrics_text = f"Ubicación: {city}, {country}"
+            
+            # Usar el target mejorado
+            target = display_target
+        
+        elif tool_type == "dns_lookup":
+            metrics = entry.get("metrics", {})
+            record_type = metrics.get("record_type", "A")
+            records_found = metrics.get("records_found", 0)
+    
+            if metrics.get("success", False):
+                status = f"{Fore.GREEN}Éxito{Style.RESET_ALL}"
+                metrics_text = f"{records_found} registros {record_type}"
+            else:
+                status = f"{Fore.RED}Error{Style.RESET_ALL}"
+                metrics_text = f"Error: {metrics.get('error', 'Desconocido')}"
+    
+            print(f"{tool_type:<12} {target:<20} {last_check:<20} {status:<25} {metrics_text:<30}")
+
+        print(f"{tool_type:<12} {target:<20} {last_check:<20} {status:<25} {metrics_text:<30}")
+
+def show_detailed_network_history():
+    """Muestra el historial detallado de un host específico"""
+    target = input(f"{Fore.YELLOW}Ingrese el host a consultar: {Style.RESET_ALL}").strip()
+    
+    if not target:
+        print(f"{Fore.RED}Debe ingresar un host{Style.RESET_ALL}")
+        return
+    
+    # Obtener todos los resultados para este host
+    entries = network_history.load_results(target=target)
+    
+    if not entries:
+        print(f"{Fore.YELLOW}No hay historial para {target}{Style.RESET_ALL}")
+        return
+    
+    print(f"\n{Fore.CYAN}📊 Historial detallado de {target}:{Style.RESET_ALL}")
+    print("=" * 80)
+    
+    for key, history_entries in entries.items():
+        # Extraer el tipo de herramienta de la clave
+        tool_type = key.split('_')[-1] if '_' in key else "unknown"
+        
+        print(f"\n{Fore.MAGENTA}🔧 Herramienta: {tool_type.upper()}{Style.RESET_ALL}")
+        print("-" * 60)
+        
+        for i, entry in enumerate(reversed(history_entries), 1):
+            timestamp = datetime.fromisoformat(entry["timestamp"]).strftime("%Y-%m-%d %H:%M:%S")
+            
+            print(f"{Fore.CYAN}Ejecución {i} - {timestamp}{Style.RESET_ALL}")
+            
+            # Mostrar información según el tipo de herramienta
+            if tool_type == "ping":
+                if entry.get("reachable", False):
+                    print(f"  Estado: {Fore.GREEN}Alcanzable{Style.RESET_ALL}")
+                    print(f"  Paquetes: {entry.get('sent', 0)} enviados, {entry.get('received', 0)} recibidos")
+                    print(f"  Pérdida: {entry.get('loss_percent', 0)}%")
+                    print(f"  Latencia: min={entry.get('rtt_min', 0)}ms, avg={entry.get('rtt_avg', 0)}ms, max={entry.get('rtt_max', 0)}ms")
+                    print(f"  TTL: {entry.get('ttl', 'N/A')}")
+                else:
+                    print(f"  Estado: {Fore.RED}No alcanzable{Style.RESET_ALL}")
+            
+            elif tool_type == "traceroute":
+                reachable = entry.get("reachable", False)
+                status = f"{Fore.GREEN}Completado{Style.RESET_ALL}" if reachable else f"{Fore.YELLOW}Parcial{Style.RESET_ALL}"
+                print(f"  Estado: {status}")
+                print(f"  Saltos totales: {entry.get('total_hops', 0)}")
+                print(f"  Saltos con timeout: {entry.get('timeout_hops', 0)}")
+                print(f"  Latencia máxima: {entry.get('max_latency', 0)}ms")
+            
+            elif tool_type == "whois":
+                print(f"  Estado: {Fore.BLUE}Consulta exitosa{Style.RESET_ALL}")
+                if entry.get("creation_date"):
+                    print(f"  - Fecha creación: {entry.get('creation_date')}")
+                if entry.get("expiration_date"):
+                    print(f"  - Fecha expiración: {entry.get('expiration_date')}")
+                    if entry.get("days_until_expiration") is not None:
+                        days_left = entry.get("days_until_expiration")
+                        status_color = Fore.GREEN if days_left > 365 else Fore.YELLOW if days_left > 30 else Fore.RED
+                        print(f"  - Días hasta expiración: {status_color}{days_left}{Style.RESET_ALL}")
+                if entry.get("registrar"):
+                    print(f"  - Registrador: {entry.get('registrar')}")
+                if entry.get("name_servers"):
+                    print(f"  - Servidores DNS: {len(entry.get('name_servers', []))} encontrados")
+                    for ns in entry.get("name_servers", [])[:3]:  # Mostrar solo los primeros 3
+                        print(f"    - {ns}")
+                    if len(entry.get("name_servers", [])) > 3:
+                        print(f"    - ... y {len(entry.get('name_servers', [])) - 3} más")
+                if entry.get("domain_age_years"):
+                    print(f"  - Edad del dominio: {entry.get('domain_age_years')} años")
+            
+            elif tool_type == "geoip":
+                if entry.get("success", False):
+                    print(f"  Estado: {Fore.GREEN}Localización exitosa{Style.RESET_ALL}")
+                    print(f"  - IP: {entry.get('ip', 'N/A')}")
+                    print(f"  - Ubicación: {entry.get('city', 'N/A')}, {entry.get('country', 'N/A')}")
+                    print(f"  - Coordenadas: {entry.get('latitude', 'N/A')}, {entry.get('longitude', 'N/A')}")
+                    print(f"  - Organización: {entry.get('organization', 'N/A')}")
+                    print(f"  - ASN: {entry.get('asn', 'N/A')}")
+                    print(f"  - País: {entry.get('country_code', 'N/A')}")
+                else:
+                    print(f"  Estado: {Fore.RED}Error de localización{Style.RESET_ALL}")
+                    print(f"  - Error: {entry.get('error', 'Desconocido')}")
+
+            elif tool_type == "dns_lookup":
+                if entry.get("success", False):
+                    print(f"  Estado: {Fore.GREEN}Consulta exitosa{Style.RESET_ALL}")
+                    print(f"  - Tipo: {entry.get('record_type', 'A')}")
+                    print(f"  - Registros encontrados: {entry.get('records_found', 0)}")
+                    print(f"  - Tiempo respuesta: {entry.get('response_time', 'N/A')}ms")
+        
+                    if entry.get('ips'):
+                        print(f"  - IPs encontradas: {len(entry.get('ips', []))}")
+                        for ip in entry.get('ips', [])[:3]:  # Mostrar máximo 3 IPs
+                            print(f"    - {ip}")
+                        if len(entry.get('ips', [])) > 3:
+                            print(f"    - ... y {len(entry.get('ips', [])) - 3} más")
+        
+                    if entry.get('ttl_avg'):
+                        print(f"  - TTL: min={entry.get('ttl_min')}s, avg={entry.get('ttl_avg'):.1f}s, max={entry.get('ttl_max')}s")
+                else:
+                    print(f"  Estado: {Fore.RED}Error{Style.RESET_ALL}")
+                    print(f"  - Error: {entry.get('error', 'Desconocido')}")
+
+            print("-" * 40)
+
+def show_history_by_tool_type():
+    """Muestra historial filtrado por tipo de herramienta"""
+    print(f"\n{Fore.CYAN}📋 Tipos de herramientas disponibles:{Style.RESET_ALL}")
+    print("1. Ping")
+    print("2. Traceroute")
+    print("3. Whois")
+    print("4. GeoIP")
+    print("5. DNS Lookup")
+    print("6. Todos los tipos")
+    
+    tool_choice = input(f"{Fore.YELLOW}Seleccione el tipo: {Style.RESET_ALL}").strip()
+    
+    tool_type = None
+    if tool_choice == "1":
+        tool_type = "ping"
+    elif tool_choice == "2":
+        tool_type = "traceroute"
+    elif tool_choice == "3":
+        tool_type = "whois"
+    elif tool_choice == "4":
+        tool_type = "geoip"
+    elif tool_choice == "5":
+        tool_type = "dns_lookup"
+    elif tool_choice == "6":
+        tool_type = None
+    else:
+        print(f"{Fore.RED}Opción no válida{Style.RESET_ALL}")
+        return
+    
+    # Obtener resultados filtrados
+    entries = network_history.load_results(tool_type=tool_type)
+    
+    if not entries:
+        print(f"{Fore.YELLOW}No hay historial para el tipo seleccionado{Style.RESET_ALL}")
+        return
+    
+    print(f"\n{Fore.CYAN}📊 Historial por tipo {'(' + tool_type + ')' if tool_type else '(todos)'}:{Style.RESET_ALL}")
+    print("=" * 80)
+    
+    for key, history_entries in entries.items():
+        # Extraer target y tipo de la clave
+        key_parts = key.split('_')
+        target = '_'.join(key_parts[:-1])  # Todo excepto el último elemento
+        tool = key_parts[-1] if len(key_parts) > 1 else "unknown"
+        
+        # Mejorar visualización del target para GeoIP
+        if tool == "geoip":
+            service_name = get_service_name_from_ip(target)
+            if service_name:
+                display_target = f"{service_name} ({target})"  # ← AMBOS
+            else:
+                display_target = target
+        else:
+            display_target = target
+        
+        if history_entries:
+            latest = history_entries[-1]
+            timestamp = datetime.fromisoformat(latest["timestamp"]).strftime("%Y-%m-%d %H:%M")
+            
+            print(f"\n{Fore.MAGENTA}🔧 {tool.upper()} - {display_target}{Style.RESET_ALL}")
+            print(f"  Última ejecución: {timestamp}")
+            
+            # Mostrar métricas resumidas según el tipo
+            if tool == "ping":
+                reachable = latest.get("reachable", False)
+                status = f"{Fore.GREEN}Alcanzable{Style.RESET_ALL}" if reachable else f"{Fore.RED}No alcanzable{Style.RESET_ALL}"
+                print(f"  Estado: {status}")
+                if reachable:
+                    print(f"  Pérdida: {latest.get('loss_percent', 0)}%")
+                    print(f"  Latencia avg: {latest.get('rtt_avg', 0)}ms")
+            
+            elif tool == "traceroute":
+                reachable = latest.get("reachable", False)
+                status = f"{Fore.GREEN}Completado{Style.RESET_ALL}" if reachable else f"{Fore.YELLOW}Parcial{Style.RESET_ALL}"
+                print(f"  Estado: {status}")
+                print(f"  Saltos: {latest.get('total_hops', 0)}")
+                print(f"  Latencia máx: {latest.get('max_latency', 0)}ms")
+            
+            elif tool == "whois":
+                if latest.get("success", False):
+                    print(f"  Estado: {Fore.GREEN}Consulta exitosa{Style.RESET_ALL}")
+                    if latest.get("registrar"):
+                        print(f"  - Registrador: {latest.get('registrar')}")
+                    if latest.get("expiration_date"):
+                        print(f"  - Expira: {latest.get('expiration_date')}")
+                else:
+                    print(f"  Estado: {Fore.YELLOW}Consulta parcial{Style.RESET_ALL}")
+            
+            elif tool == "geoip":
+                if latest.get("success", False):
+                    print(f"  Estado: {Fore.GREEN}Localizado{Style.RESET_ALL}")
+                    print(f"  - IP: {latest.get('ip', 'N/A')}")  # ← IP EXPLÍCITA
+                    print(f"  - Ubicación: {latest.get('city', 'N/A')}, {latest.get('country', 'N/A')}")
+                    print(f"  - Organización: {latest.get('organization', 'N/A')}")
+                    if latest.get('latitude') and latest.get('longitude'):
+                        print(f"  - Coordenadas: {latest.get('latitude')}, {latest.get('longitude')}")
+                else:
+                    print(f"  Estado: {Fore.RED}Error{Style.RESET_ALL}")
+                    print(f"  - Error: {latest.get('error', 'Desconocido')}")
+
+            elif tool == "dns_lookup":
+                if latest.get("success", False):
+                    print(f"  Estado: {Fore.GREEN}Consulta exitosa{Style.RESET_ALL}")
+                    print(f"  - Tipo: {latest.get('record_type', 'A')}")
+                    print(f"  - Registros: {latest.get('records_found', 0)} encontrados")
+                    if latest.get('ips'):
+                        print(f"  - IPs: {len(latest.get('ips', []))} direcciones")
+                else:
+                    print(f"  Estado: {Fore.RED}Error{Style.RESET_ALL}")
+                    print(f"  - Error: {latest.get('error', 'Desconocido')}")
+
+def get_service_name_from_ip(ip_address):
+    """
+    Intenta obtener el nombre del servicio basado en la IP
+    usando una tabla de servicios conocidos.
+    """
+    known_services = {
+        # Google
+        '172.217.': 'google.com',
+        '142.250.': 'google.com',
+        '74.125.': 'google.com',
+        # Cloudflare
+        '1.1.1.1': 'cloudflare-dns.com',
+        '1.0.0.1': 'cloudflare-dns.com',
+        # OpenDNS
+        '208.67.222.222': 'opendns.com',
+        '208.67.220.220': 'opendns.com',
+        # Amazon AWS
+        '3.': 'aws.amazon.com',
+        '52.': 'aws.amazon.com',
+        # Microsoft
+        '40.': 'microsoft.com',
+        '13.': 'microsoft.com',
+        # Facebook
+        '31.13.': 'facebook.com',
+        '157.240.': 'facebook.com',
+    }
+    
+    for ip_prefix, service_name in known_services.items():
+        if ip_address.startswith(ip_prefix):
+            return service_name
+    
+    # Si no se encuentra en la lista, hacer reverse DNS (opcional)
+    try:
+        import socket
+        hostname = socket.gethostbyaddr(ip_address)[0]
+        if hostname and not hostname.startswith(('ec2-', 'ip-')):  # Excluir nombres genéricos de cloud
+            return hostname
+    except:
+        pass
+    
+    return None
+
+def clear_network_history():
+    """Borra el historial completo o filtrado"""
+    print(f"\n{Fore.RED}⚠️  ADVERTENCIA: Esta acción no se puede deshacer{Style.RESET_ALL}")
+    print("1. Borrar todo el historial")
+    print("2. Borrar historial de un host específico")
+    print("3. Borrar historial de un tipo de herramienta")
+    print("4. Cancelar")
+    
+    choice = input(f"{Fore.YELLOW}Seleccione una opción: {Style.RESET_ALL}").strip()
+    
+    if choice == "4":
+        print(f"{Fore.YELLOW}Operación cancelada{Style.RESET_ALL}")
+        return
+    
+    if choice == "1":
+        confirm = input(f"{Fore.RED}¿Está seguro de que quiere borrar TODO el historial? (s/N): {Style.RESET_ALL}").lower()
+        if confirm == "s":
+            if network_history.clear_history():
+                print(f"{Fore.GREEN}✅ Historial completo borrado{Style.RESET_ALL}")
+            else:
+                print(f"{Fore.RED}❌ Error borrando historial{Style.RESET_ALL}")
+    
+    elif choice == "2":
+        target = input(f"{Fore.YELLOW}Ingrese el host a borrar: {Style.RESET_ALL}").strip()
+        if target:
+            confirm = input(f"{Fore.RED}¿Borrar todo el historial de {target}? (s/N): {Style.RESET_ALL}").lower()
+            if confirm == "s":
+                if network_history.clear_history(target=target):
+                    print(f"{Fore.GREEN}✅ Historial de {target} borrado{Style.RESET_ALL}")
+                else:
+                    print(f"{Fore.RED}❌ Error borrando historial{Style.RESET_ALL}")
+    
+    elif choice == "3":
+        print("1. Borrar solo ping")
+        print("2. Borrar solo traceroute")
+        tool_choice = input(f"{Fore.YELLOW}Seleccione el tipo: {Style.RESET_ALL}").strip()
+        
+        tool_type = None
+        if tool_choice == "1":
+            tool_type = "ping"
+        elif tool_choice == "2":
+            tool_type = "traceroute"
+        else:
+            print(f"{Fore.RED}Opción no válida{Style.RESET_ALL}")
+            return
+        
+        confirm = input(f"{Fore.RED}¿Borrar todo el historial de {tool_type}? (s/N): {Style.RESET_ALL}").lower()
+        if confirm == "s":
+            if network_history.clear_history(tool_type=tool_type):
+                print(f"{Fore.GREEN}✅ Historial de {tool_type} borrado{Style.RESET_ALL}")
+            else:
+                print(f"{Fore.RED}❌ Error borrando historial{Style.RESET_ALL}")
+    
+    else:
+        print(f"{Fore.RED}Opción no válida{Style.RESET_ALL}")
+
 def main():
     # Inicializar colorama de manera segura
     Fore, Style = init_colorama()
@@ -371,8 +944,8 @@ def main():
     print(f" [*] Sistema Operativo detectado: {current_os}")
 
     while True:
-        print("\n--- Kit de Herramientas de Red ---")
-        print("1. Ping")
+        print(f"\n{Fore.CYAN}=== Network Toolkit ==={Style.RESET_ALL}")
+        print("1. Ping a un objetivo")
         print("2. Traceroute")
         print("3. WHOIS")
         print("4. DNS Lookup (dig/nslookup)")
@@ -391,7 +964,8 @@ def main():
         print("17. Certificate Transparency Search")
         print("18. Enumeración Completa Subdominios")
         print("19. Threat Intelligence (Público)")
-        print("20. Salir")
+        print("20. Historial de Network Toolkit")
+        print("0. Salir")
         
         choice = input("\nSelecciona una opción (1-20): ").strip()
 
@@ -435,6 +1009,8 @@ def main():
             elif choice == '19':
                 handle_threat_intel_option()
             elif choice == '20':
+                handle_network_history_menu()
+            elif choice == '0':
                 print("¡Saliendo! Hasta luego")
                 sys.exit(0)
             else:

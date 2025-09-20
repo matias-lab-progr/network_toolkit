@@ -1,0 +1,61 @@
+Reporte de DNS_LOOKUP - google.com
+Generado: 2025-09-20 00:52:10
+==================================================
+
+SALIDA CRUDA:
+==============================
+Servidor:  UnKnown
+Address:  10.176.137.120
+
+Nombre:  google.com
+Addresses:  142.251.0.102
+	  142.251.0.139
+	  142.251.0.138
+	  142.251.0.113
+	  142.251.0.101
+	  142.251.0.100
+
+Respuesta no autoritativa:
+
+
+
+ANÁLISIS:
+==============================
+--- ANÁLISIS DNS: google.com (A) ---
+• Dominio: google.com
+• Tipo de registro: A
+• Registros encontrados: 7
+• Direcciones IP encontradas:
+  - 10.176.137.120
+  - 142.251.0.102
+  - 142.251.0.139
+  - 142.251.0.138
+  - 142.251.0.113
+  - ... y 2 más
+
+• Recomendaciones:
+  - Múltiples IPs detectadas: posible balanceo de carga o CDN
+--------------------------------------------------
+
+MÉTRICAS (JSON):
+==============================
+{
+  "domain": "google.com",
+  "record_type": "A",
+  "records_found": 7,
+  "ips": [
+    "10.176.137.120",
+    "142.251.0.102",
+    "142.251.0.139",
+    "142.251.0.138",
+    "142.251.0.113",
+    "142.251.0.101",
+    "142.251.0.100"
+  ],
+  "ttl_min": null,
+  "ttl_avg": null,
+  "ttl_max": null,
+  "response_time": null,
+  "success": true,
+  "timestamp": "2025-09-20T00:52:08.506549"
+}

@@ -7,6 +7,13 @@ __version__ = "1.0.0"
 __author__ = "Matías"
 __description__ = "Herramienta profesional para análisis de red, DNS y diagnóstico de conectividad"
 
+from .history_tools import NetworkHistoryManager, network_history
+from .network_tools import ping_target, traceroute_target
+from .analysis_tools import analyse_ping_output, analyze_traceroute_output
+from .whois_tools import get_whois_info
+from .network_tools import geolocate_ip, display_geolocation
+
+
 from .dns_tools import (
     dns_lookup,
     comprehensive_dns_scan,
@@ -29,8 +36,7 @@ from .network_tools import (
 )
 
 from .whois_tools import (
-    get_whois_info,
-    get_whois_info_enhanced
+    get_whois_info
 )
 
 from .analysis_tools import (
@@ -100,7 +106,15 @@ __all__ = [
     'is_valid_domain',
     'is_valid_target',
     'check_optional_dependencies',
-    'is_dependency_available'
+    'is_dependency_available',
+    'NetworkHistoryManager',
+    'network_history',
+    'ping_target',
+    'traceroute_target',
+    'analyse_ping_output',
+    'analyze_traceroute_output',
+    'geolocate_ip',
+    'display_geolocation'
 ]
 
 

@@ -1,0 +1,68 @@
+Reporte de WHOIS - google.com
+Generado: 2025-09-19 23:56:36
+==================================================
+
+SALIDA CRUDA:
+==============================
+Información WHOIS para google.com:
+
+Nombre de dominio: GOOGLE.COM
+Registrador: MarkMonitor, Inc.
+Fecha de creación: [datetime.datetime(1997, 9, 15, 4, 0), datetime.datetime(1997, 9, 15, 7, 0, tzinfo=datetime.timezone.utc)]
+Fecha de expiración: [datetime.datetime(2028, 9, 14, 4, 0), datetime.datetime(2028, 9, 13, 7, 0, tzinfo=datetime.timezone.utc)]
+Última actualización: [datetime.datetime(2019, 9, 9, 15, 39, 4), datetime.datetime(2024, 8, 2, 2, 17, 33, tzinfo=datetime.timezone.utc)]
+
+Servidores de nombres:
+  - NS1.GOOGLE.COM
+  - NS2.GOOGLE.COM
+  - NS3.GOOGLE.COM
+  - NS4.GOOGLE.COM
+
+
+ANÁLISIS:
+==============================
+--- ANÁLISIS WHOIS: google.com ---
+• Información del dominio:
+  - Creación: 1997-09-15
+  - Expiración: 2028-09-14
+  - Días hasta expiración: 1090
+  - Última actualización: 2019-09-09
+  ⚠️  Sin actualizaciones hace 2202 días
+• Registrador: MarkMonitor, Inc.
+  ✅ Registrador profesional (empresas grandes)
+• Servidores DNS (4):
+  - NS1.GOOGLE.COM
+  - NS2.GOOGLE.COM
+  - NS3.GOOGLE.COM
+  - NS4.GOOGLE.COM
+  ✅ Configuración redundante (buena práctica)
+  ✅ Usa servidores propios (configuración profesional)
+• Estado del dominio:
+  - Edad aproximada: 28 años
+  ✅ Dominio antiguo (mayor confianza)
+
+• Recomendaciones:
+  - Verificar periodicamente los datos WHOIS
+  - Considerar protección de privacidad del dominio
+  - Mantener actualizada la información de contacto
+----------------------------------------
+
+MÉTRICAS (JSON):
+==============================
+{
+  "domain": "google.com",
+  "creation_date": "1997-09-15",
+  "expiration_date": "2028-09-14",
+  "updated_date": "2019-09-09",
+  "registrar": "MarkMonitor, Inc.",
+  "name_servers": [
+    "NS1.GOOGLE.COM",
+    "NS2.GOOGLE.COM",
+    "NS3.GOOGLE.COM",
+    "NS4.GOOGLE.COM"
+  ],
+  "domain_age_years": 28,
+  "days_until_expiration": 1090,
+  "success": true,
+  "timestamp": "2025-09-19T23:56:35.121000"
+}

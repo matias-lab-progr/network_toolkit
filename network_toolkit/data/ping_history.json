@@ -1,0 +1,19 @@
+{
+  "google.com": [
+    {
+      "target": "google.com",
+      "timestamp": "2025-09-19T22:34:03.639502",
+      "sent": 0,
+      "received": 0,
+      "lost": 0,
+      "loss_percent": 0.0,
+      "rtt_min": 0.0,
+      "rtt_avg": 0.0,
+      "rtt_max": 0.0,
+      "rtt_stddev": 0.0,
+      "ttl": 99,
+      "reachable": true,
+      "sample_times": []
+    }
+  ]
+}

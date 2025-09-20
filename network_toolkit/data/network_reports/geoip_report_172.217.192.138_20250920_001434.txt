@@ -1,0 +1,53 @@
+Reporte de GEOIP - 172.217.192.138
+Generado: 2025-09-20 00:14:34
+==================================================
+
+SALIDA CRUDA:
+==============================
+Geolocalización para 172.217.192.138
+ip: 172.217.192.138
+city: Mountain View
+region: California
+country: United States
+postal: None
+latitude: 38.00881
+longitude: -122.11746
+timezone: America/Los_Angeles
+org: GOOGLE
+asn: AS15169
+country_code: US
+
+
+ANÁLISIS:
+==============================
+--- INFORMACIÓN DE GEOLOCALIZACIÓN ---
+• IP: 172.217.192.138
+• Ubicación: Mountain View, California, United States
+• Código Postal: None
+• Coordenadas: 38.00881, -122.11746
+• Zona Horaria: America/Los_Angeles
+• Organización: GOOGLE
+• ASN: AS15169
+
+--- ANÁLISIS GEOGRÁFICO ---
+• País: United States (US)
+  ✅ País desarrollado (buena conectividad)
+• Hosting: ☁️  Servicio en la nube
+----------------------------------------
+
+MÉTRICAS (JSON):
+==============================
+{
+  "ip": "172.217.192.138",
+  "city": "Mountain View",
+  "region": "California",
+  "country": "United States",
+  "country_code": "US",
+  "latitude": 38.00881,
+  "longitude": -122.11746,
+  "organization": "GOOGLE",
+  "asn": "AS15169",
+  "success": true,
+  "api_used": "ipapi.co",
+  "timestamp": "2025-09-20T00:14:31.675480"
+}

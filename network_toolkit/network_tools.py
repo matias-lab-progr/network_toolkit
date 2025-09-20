@@ -2,27 +2,204 @@
 """
 Módulo de herramientas de red para Network Toolkit - Comandos básicos de red
 """
+
+import re
+import platform
+import subprocess
+import json
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, List, Tuple, Optional, Any
+import colorama
+from colorama import Fore, Style
 from colorama import Fore, Style
 
 from .utils import run_command, run_command_realtime
 
-def ping_target(target, current_os):
+def ping_target(target: str, current_os: str, count: int = 4) -> str:
     """
-    Ejecuta el comando ping hacia un objetivo específico.
+    Ejecuta el comando ping según el sistema operativo
     
     Args:
-        target (str): IP o dominio a hacer ping
-        current_os (str): Sistema operativo detectado ('windows', 'linux', 'darwin')
+        target: IP o dominio a hacer ping
+        current_os: Sistema operativo (linux, macos, windows)
+        count: Número de paquetes a enviar (default: 4)
     
     Returns:
-        str: Salida del comando ping
+        str: Salida cruda del comando ping
     """
-    if current_os == "windows":
-        command = f"ping -n 4 {target}"
-    else:
-        command = f"ping -c 4 {target}"
+    try:
+        if current_os in ["linux", "macos"]:
+            cmd = ["ping", "-c", str(count), target]
+        else:  # windows
+            cmd = ["ping", "-n", str(count), target]
+        
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        return result.stdout if result.returncode == 0 else result.stderr
+    except subprocess.TimeoutExpired:
+        return "Error: Timeout al ejecutar ping"
+    except Exception as e:
+        return f"Error ejecutando ping: {str(e)}"
+
+def analyse_ping_output(output: str, target: str) -> Tuple[str, Dict[str, Any]]:
+    """
+    Analiza la salida del comando ping y extrae métricas
     
-    return run_command(command)
+    Args:
+        output: Salida cruda del comando ping
+        target: IP o dominio que se hizo ping
+    
+    Returns:
+        Tuple[str, Dict]: Análisis en texto y métricas estructuradas
+    """
+    metrics = {
+        "target": target,
+        "timestamp": datetime.now().isoformat(),
+        "sent": 0,
+        "received": 0,
+        "lost": 0,
+        "loss_percent": 0.0,
+        "rtt_min": 0.0,
+        "rtt_avg": 0.0,
+        "rtt_max": 0.0,
+        "rtt_stddev": 0.0,
+        "ttl": 0,
+        "reachable": False
+    }
+    
+    analysis_lines = []
+    
+    # Verificar si el host es alcanzable
+    if "Destination Host Unreachable" in output or "100% loss" in output:
+        metrics["reachable"] = False
+        analysis_lines.append(f"{Fore.RED}❌ Host {target} no alcanzable{Style.RESET_ALL}")
+        return "\n".join(analysis_lines), metrics
+    
+    metrics["reachable"] = True
+    analysis_lines.append(f"{Fore.GREEN}✅ Host {target} alcanzable{Style.RESET_ALL}")
+    
+    # Patrones regex para diferentes sistemas operativos
+    # Linux/macOS
+    packet_loss_pattern = r"(\d+) packets transmitted, (\d+) received, ([\d.]+)% packet loss"
+    rtt_pattern = r"rtt min/avg/max/mdev = ([\d.]+)/([\d.]+)/([\d.]+)/([\d.]+) ms"
+    ttl_pattern = r"ttl=(\d+)"
+    
+    # Windows
+    win_packet_loss_pattern = r"Packets: Sent = (\d+), Received = (\d+), Lost = (\d+) .*\(([\d.]+)% loss\)"
+    win_rtt_pattern = r"Minimum = ([\d.]+)ms, Maximum = ([\d.]+)ms, Average = ([\d.]+)ms"
+    win_ttl_pattern = r"TTL=(\d+)"
+    
+    # Extraer métricas según el sistema operativo
+    if platform.system().lower() != "windows":
+        # Linux/macOS
+        packet_loss_match = re.search(packet_loss_pattern, output)
+        rtt_match = re.search(rtt_pattern, output)
+        ttl_match = re.search(ttl_pattern, output)
+        
+        if packet_loss_match:
+            metrics["sent"] = int(packet_loss_match.group(1))
+            metrics["received"] = int(packet_loss_match.group(2))
+            metrics["lost"] = metrics["sent"] - metrics["received"]
+            metrics["loss_percent"] = float(packet_loss_match.group(3))
+        
+        if rtt_match:
+            metrics["rtt_min"] = float(rtt_match.group(1))
+            metrics["rtt_avg"] = float(rtt_match.group(2))
+            metrics["rtt_max"] = float(rtt_match.group(3))
+            metrics["rtt_stddev"] = float(rtt_match.group(4))
+        
+        if ttl_match:
+            metrics["ttl"] = int(ttl_match.group(1))
+    else:
+        # Windows
+        win_packet_loss_match = re.search(win_packet_loss_pattern, output)
+        win_rtt_match = re.search(win_rtt_pattern, output)
+        win_ttl_match = re.search(win_ttl_pattern, output)
+        
+        if win_packet_loss_match:
+            metrics["sent"] = int(win_packet_loss_match.group(1))
+            metrics["received"] = int(win_packet_loss_match.group(2))
+            metrics["lost"] = int(win_packet_loss_match.group(3))
+            metrics["loss_percent"] = float(win_packet_loss_match.group(4))
+        
+        if win_rtt_match:
+            metrics["rtt_min"] = float(win_rtt_match.group(1))
+            metrics["rtt_max"] = float(win_rtt_match.group(2))
+            metrics["rtt_avg"] = float(win_rtt_match.group(3))
+        
+        if win_ttl_match:
+            metrics["ttl"] = int(win_ttl_match.group(1))
+    
+    # Generar análisis en texto
+    analysis_lines.append(f"\n{Fore.CYAN}📊 Métricas de Ping:{Style.RESET_ALL}")
+    analysis_lines.append(f"  Paquetes enviados: {metrics['sent']}")
+    analysis_lines.append(f"  Paquetes recibidos: {metrics['received']}")
+    analysis_lines.append(f"  Paquetes perdidos: {metrics['lost']}")
+    
+    # Evaluar pérdida de paquetes
+    loss_color = Fore.GREEN
+    loss_comment = "Excelente"
+    if metrics["loss_percent"] > 5:
+        loss_color = Fore.YELLOW
+        loss_comment = "Aceptable"
+    if metrics["loss_percent"] > 15:
+        loss_color = Fore.RED
+        loss_comment = "Alta - Problemas de conectividad"
+    
+    analysis_lines.append(f"  Pérdida de paquetes: {loss_color}{metrics['loss_percent']}% {loss_comment}{Style.RESET_ALL}")
+    
+    # Evaluar latencia
+    if metrics["rtt_avg"] > 0:
+        analysis_lines.append(f"\n{Fore.CYAN}⏱️  Latencia (RTT):{Style.RESET_ALL}")
+        analysis_lines.append(f"  Mínimo: {metrics['rtt_min']} ms")
+        analysis_lines.append(f"  Promedio: {metrics['rtt_avg']} ms")
+        analysis_lines.append(f"  Máximo: {metrics['rtt_max']} ms")
+        
+        if metrics.get("rtt_stddev", 0) > 0:
+            analysis_lines.append(f"  Desviación estándar: {metrics['rtt_stddev']} ms")
+            # Calcular jitter (usamos la desviación estándar como aproximación)
+            jitter = metrics["rtt_stddev"]
+            jitter_color = Fore.GREEN
+            jitter_comment = "Estable"
+            if jitter > 10:
+                jitter_color = Fore.YELLOW
+                jitter_comment = "Variable"
+            if jitter > 30:
+                jitter_color = Fore.RED
+                jitter_comment = "Muy variable - Posibles problemas"
+            analysis_lines.append(f"  Jitter (variación): {jitter_color}{jitter:.2f} ms {jitter_comment}{Style.RESET_ALL}")
+        
+        # Evaluar calidad de latencia
+        latency_color = Fore.GREEN
+        latency_comment = "Excelente"
+        if metrics["rtt_avg"] > 100:
+            latency_color = Fore.YELLOW
+            latency_comment = "Aceptable"
+        if metrics["rtt_avg"] > 300:
+            latency_color = Fore.RED
+            latency_comment = "Alta - Posibles problemas"
+        
+        analysis_lines.append(f"  Calidad de latencia: {latency_color}{latency_comment}{Style.RESET_ALL}")
+    
+    # Información TTL
+    if metrics["ttl"] > 0:
+        analysis_lines.append(f"\n{Fore.CYAN}🔍 TTL (Time to Live):{Style.RESET_ALL}")
+        analysis_lines.append(f"  TTL: {metrics['ttl']}")
+        # Estimación de saltos (aproximada)
+        initial_ttl = 64 if metrics["ttl"] <= 64 else (128 if metrics["ttl"] <= 128 else 255)
+        hops = initial_ttl - metrics["ttl"]
+        analysis_lines.append(f"  Saltos estimados: {hops}")
+    
+    # Recomendaciones
+    analysis_lines.append(f"\n{Fore.CYAN}💡 Recomendaciones:{Style.RESET_ALL}")
+    if metrics["loss_percent"] > 15:
+        analysis_lines.append(f"  {Fore.RED}• Investigar posibles problemas de red o congestión{Style.RESET_ALL}")
+    if metrics["rtt_avg"] > 300:
+        analysis_lines.append(f"  {Fore.YELLOW}• Considerar servidores más cercanos geográficamente{Style.RESET_ALL}")
+    if metrics["reachable"] and metrics["loss_percent"] == 0 and metrics["rtt_avg"] < 50:
+        analysis_lines.append(f"  {Fore.GREEN}• Conexión excelente, sin problemas detectados{Style.RESET_ALL}")
+    
+    return "\n".join(analysis_lines), metrics
 
 def traceroute_target(target, current_os):
     """
@@ -43,15 +220,16 @@ def traceroute_target(target, current_os):
     print(f"\n[*] Ejecutando Traceroute para {target}:\n")
     return run_command_realtime(command)
 
-def geolocate_ip(ip_address):
+def geolocate_ip(ip_address: str) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     """
-    Obtiene información de geolocalización para una dirección IP usando una API gratuita.
+    Obtiene información de geolocalización para una dirección IP y devuelve 
+    tanto la información formateada como métricas estructuradas.
     
     Args:
         ip_address (str): Dirección IP a geolocalizar
     
     Returns:
-        dict: Información de geolocalización o mensaje de error
+        Tuple[Dict, Dict]: (location_info, metrics)
     """
     try:
         import requests
@@ -63,7 +241,7 @@ def geolocate_ip(ip_address):
         if response.status_code == 200:
             data = response.json()
             
-            # Filtrar información relevante
+            # Información formateada para mostrar
             location_info = {
                 'ip': data.get('ip', 'N/A'),
                 'city': data.get('city', 'N/A'),
@@ -74,36 +252,95 @@ def geolocate_ip(ip_address):
                 'longitude': data.get('longitude', 'N/A'),
                 'timezone': data.get('timezone', 'N/A'),
                 'org': data.get('org', 'N/A'),
-                'asn': data.get('asn', 'N/A')
+                'asn': data.get('asn', 'N/A'),
+                'country_code': data.get('country_code', 'N/A')
             }
             
-            return location_info
+            # Métricas estructuradas para el historial
+            metrics = {
+                'ip': ip_address,
+                'city': location_info['city'],
+                'region': location_info['region'],
+                'country': location_info['country'],
+                'country_code': location_info['country_code'],
+                'latitude': location_info['latitude'],
+                'longitude': location_info['longitude'],
+                'organization': location_info['org'],
+                'asn': location_info['asn'],
+                'success': True,
+                'api_used': 'ipapi.co',
+                'timestamp': datetime.now().isoformat()
+            }
+            
+            return location_info, metrics
+            
         else:
-            return {"error": f"Error en la API: {response.status_code}"}
+            error_msg = {"error": f"Error en la API: {response.status_code}"}
+            metrics = {
+                'ip': ip_address,
+                'success': False,
+                'error': f"API error {response.status_code}",
+                'timestamp': datetime.now().isoformat()
+            }
+            return error_msg, metrics
             
     except Exception as e:
-        return {"error": f"Error al geolocalizar IP: {str(e)}"}
+        error_msg = {"error": f"Error al geolocalizar IP: {str(e)}"}
+        metrics = {
+            'ip': ip_address,
+            'success': False,
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        }
+        return error_msg, metrics
 
-def display_geolocation(location_info):
+def display_geolocation(location_info: Dict[str, Any]) -> str:
     """
     Muestra la información de geolocalización de forma formateada.
     
     Args:
         location_info (dict): Información de geolocalización
+    
+    Returns:
+        str: Análisis formateado
     """
     if 'error' in location_info:
-        print(f"{Fore.RED}[!] {location_info['error']}{Style.RESET_ALL}")
-        return
+        return f"{Fore.RED}[!] {location_info['error']}{Style.RESET_ALL}"
     
-    print(f"\n{Fore.CYAN}--- INFORMACIÓN DE GEOLOCALIZACIÓN ---{Style.RESET_ALL}")
-    print(f"• IP: {location_info['ip']}")
-    print(f"• Ubicación: {location_info['city']}, {location_info['region']}, {location_info['country']}")
-    print(f"• Código Postal: {location_info['postal']}")
-    print(f"• Coordenadas: {location_info['latitude']}, {location_info['longitude']}")
-    print(f"• Zona Horaria: {location_info['timezone']}")
-    print(f"• Organización: {location_info['org']}")
-    print(f"• ASN: {location_info['asn']}")
-    print(f"{Fore.CYAN}----------------------------------------{Style.RESET_ALL}")
+    analysis_lines = []
+    analysis_lines.append(f"{Fore.CYAN}--- INFORMACIÓN DE GEOLOCALIZACIÓN ---{Style.RESET_ALL}")
+    analysis_lines.append(f"• IP: {location_info['ip']}")
+    analysis_lines.append(f"• Ubicación: {location_info['city']}, {location_info['region']}, {location_info['country']}")
+    analysis_lines.append(f"• Código Postal: {location_info['postal']}")
+    analysis_lines.append(f"• Coordenadas: {location_info['latitude']}, {location_info['longitude']}")
+    analysis_lines.append(f"• Zona Horaria: {location_info['timezone']}")
+    analysis_lines.append(f"• Organización: {location_info['org']}")
+    analysis_lines.append(f"• ASN: {location_info['asn']}")
+    
+    # Análisis adicional
+    analysis_lines.append(f"\n{Fore.CYAN}--- ANÁLISIS GEOGRÁFICO ---{Style.RESET_ALL}")
+    
+    # Análisis por país
+    country_code = location_info.get('country_code', '').upper()
+    if country_code:
+        analysis_lines.append(f"• País: {location_info['country']} ({country_code})")
+        
+        # Algunos análisis básicos por región
+        if country_code in ['US', 'CA', 'AU', 'GB', 'DE', 'FR', 'JP']:
+            analysis_lines.append(f"  {Fore.GREEN}✅ País desarrollado (buena conectividad){Style.RESET_ALL}")
+        elif country_code in ['CN', 'RU', 'BR', 'IN']:
+            analysis_lines.append(f"  {Fore.YELLOW}⚠️  País con regulaciones específicas de internet{Style.RESET_ALL}")
+    
+    # Análisis de organización
+    org = location_info.get('org', '').lower()
+    if any(keyword in org for keyword in ['google', 'amazon', 'azure', 'cloud']):
+        analysis_lines.append(f"• Hosting: {Fore.BLUE}☁️  Servicio en la nube{Style.RESET_ALL}")
+    elif 'isp' in org or 'internet' in org or 'telecom' in org:
+        analysis_lines.append(f"• Proveedor: {Fore.GREEN}📡 ISP/Proveedor de internet{Style.RESET_ALL}")
+    
+    analysis_lines.append(f"{Fore.CYAN}----------------------------------------{Style.RESET_ALL}")
+    
+    return "\n".join(analysis_lines)
 
 def get_detailed_asn_info(ip_address):
     """

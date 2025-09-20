@@ -3,6 +3,7 @@
 Módulo de herramientas DNS para Network Toolkit - Consultas DNS profesionales
 """
 
+from datetime import datetime
 import time
 import dns.resolver
 import dns.exception
@@ -16,28 +17,44 @@ from colorama import Fore, Style
 from .utils import check_network_connectivity, is_valid_domain
 
 def dns_lookup(domain, record_type='A', nameserver=None, raw=False):
-    # Realiza consultas DNS profesionales con salida formateada para pentesting
-    # Args:
-    #   domain (str): dominio a consultar (e.g. "google.com")
-    #   record_type (str): tipo de registro DNS (A, AAAA, NS, MX, TXT, CNAME, SOA)
-    #   nameserver (str): servidor DNS específico (e.g. "1.1.1.1")
-    #   raw (bool): Si True, muestra salida técnica; si False, muestra resumen para pentesting
-    # Returns:
-    #   list: lista de diccionarios con los resultados de la consulta
+    """
+    Realiza consultas DNS profesionales con salida formateada para pentesting
+    
+    Returns:
+        tuple: (results, metrics) donde metrics es un dict con información estructurada
+    """
     results = []
+    metrics = {
+        'domain': domain,
+        'record_type': record_type,
+        'nameserver': nameserver,
+        'records_found': 0,
+        'ips': [],
+        'ttls': [],
+        'response_time': None,
+        'success': False,
+        'timestamp': datetime.now().isoformat()
+    }
 
     try:
+        import time
+        start_time = time.time()
+        
         # Configurar el resolver con timeout
         resolver = dns.resolver.Resolver()
-        resolver.lifetime = 10  # 10 segundos de timeout
-        resolver.timeout = 5    # 5 segundo por consulta
+        resolver.lifetime = 10
+        resolver.timeout = 5
 
         # Usar el nameserver específico si se proporciona
         if nameserver:
             resolver.nameservers = [nameserver]
+            metrics['nameserver'] = nameserver
 
         # Realizar la consulta
         answer = resolver.resolve(domain, record_type)
+        
+        # Calcular tiempo de respuesta
+        metrics['response_time'] = round((time.time() - start_time) * 1000, 2)  # ms
 
         # Procesar los resultados
         for rdata in answer:
@@ -48,6 +65,15 @@ def dns_lookup(domain, record_type='A', nameserver=None, raw=False):
                 'raw': rdata
             }
             results.append(record_info)
+            
+            # Extraer métricas
+            if record_type in ['A', 'AAAA']:
+                metrics['ips'].append(str(rdata))
+            if answer.rrset:
+                metrics['ttls'].append(answer.rrset.ttl)
+        
+        metrics['records_found'] = len(results)
+        metrics['success'] = True
         
         # Mostrar salida según el modo
         if raw:
@@ -58,17 +84,27 @@ def dns_lookup(domain, record_type='A', nameserver=None, raw=False):
         print(f"{Fore.GREEN}[-] Consulta finalizada. {len(results)} registros encontrados.{Style.RESET_ALL}")
 
     except dns.resolver.Timeout:
-        print(f"{Fore.RED}[!] Timeout en la consulta DNS después de 10 segundos{Style.RESET_ALL}")
+        error_msg = "Timeout en la consulta DNS después de 10 segundos"
+        print(f"{Fore.RED}[!] {error_msg}{Style.RESET_ALL}")
+        metrics['error'] = error_msg
     except dns.resolver.NoAnswer:
-        print(f"{Fore.YELLOW}[!] El dominio existe pero no tiene registros {record_type}{Style.RESET_ALL}")
+        error_msg = f"El dominio existe pero no tiene registros {record_type}"
+        print(f"{Fore.YELLOW}[!] {error_msg}{Style.RESET_ALL}")
+        metrics['error'] = error_msg
     except dns.resolver.NXDOMAIN:
-        print(f"{Fore.RED}[!] El dominio {domain} no existe{Style.RESET_ALL}")
+        error_msg = f"El dominio {domain} no existe"
+        print(f"{Fore.RED}[!] {error_msg}{Style.RESET_ALL}")
+        metrics['error'] = error_msg
     except dns.exception.DNSException as e:
-        print(f"{Fore.RED}[!] Error DNS: {str(e)}{Style.RESET_ALL}")
+        error_msg = f"Error DNS: {str(e)}"
+        print(f"{Fore.RED}[!] {error_msg}{Style.RESET_ALL}")
+        metrics['error'] = error_msg
     except Exception as e:
-        print(f"{Fore.RED}[!] Error inesperado: {str(e)}{Style.RESET_ALL}")
+        error_msg = f"Error inesperado: {str(e)}"
+        print(f"{Fore.RED}[!] {error_msg}{Style.RESET_ALL}")
+        metrics['error'] = error_msg
 
-    return results
+    return results, metrics
 
 def comprehensive_dns_scan(domain, nameserver=None, raw=False):
     # Realiza un escaneo completo de todos los tipos de registros DNS comunes.

@@ -1,0 +1,47 @@
+Reporte de DNS_LOOKUP - google.com
+Generado: 2025-09-20 01:03:52
+==================================================
+
+SALIDA CRUDA:
+==============================
+Servidor:  UnKnown
+Address:  10.176.137.120
+
+Nombre:  google.com
+Addresses:  2800:3f0:4003:c0f::65
+	  2800:3f0:4003:c0f::8b
+	  2800:3f0:4003:c0f::66
+	  2800:3f0:4003:c0f::8a
+
+Respuesta no autoritativa:
+
+
+
+ANÁLISIS:
+==============================
+--- ANÁLISIS DNS: google.com (AAAA) ---
+• Dominio: google.com
+• Tipo de registro: AAAA
+• Registros encontrados: 1
+• Direcciones IP encontradas:
+  - 10.176.137.120
+
+• Recomendaciones:
+--------------------------------------------------
+
+MÉTRICAS (JSON):
+==============================
+{
+  "domain": "google.com",
+  "record_type": "AAAA",
+  "records_found": 1,
+  "ips": [
+    "10.176.137.120"
+  ],
+  "ttl_min": null,
+  "ttl_avg": null,
+  "ttl_max": null,
+  "response_time": null,
+  "success": true,
+  "timestamp": "2025-09-20T01:03:50.506045"
+}
