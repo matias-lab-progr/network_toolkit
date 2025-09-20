@@ -129,12 +129,18 @@ def handle_ping_option(current_os):
     if save_report == "s":
         save_network_report(target, "ping", output, analysis, metrics)
 
-def handle_traceroute_option(current_os):
-    # Maneja la opción de traceroute
+def handle_traceroute_option(current_os=None):
+    """Maneja la opción de traceroute"""
+    # Si no se proporciona SO, detectarlo
+    if current_os is None:
+        current_os = platform.system()
+    
+    print(f"[DEBUG] SO para traceroute: {current_os}")
+    
     target = input(f"{Fore.YELLOW}Introduce el objetivo (ej. google.com): {Style.RESET_ALL}").strip()
     
     output = traceroute_target(target, current_os)
-    analysis, metrics = analyze_traceroute_output(output, target)  # Cambiada para devolver métricas también
+    analysis, metrics = analyze_traceroute_output(output, target)
     print(analysis)
     
     # Guardar en historial

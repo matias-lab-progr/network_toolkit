@@ -201,7 +201,7 @@ def analyse_ping_output(output: str, target: str) -> Tuple[str, Dict[str, Any]]:
     
     return "\n".join(analysis_lines), metrics
 
-def traceroute_target(target, current_os):
+def traceroute_target(target, current_os=None):
     """
     Ejecuta el comando traceroute/tracert hacia un objetivo específico.
     
@@ -212,6 +212,9 @@ def traceroute_target(target, current_os):
     Returns:
         str: Salida del comando traceroute
     """
+    if current_os is None:
+        current_os = platform.system()
+
     if current_os == "windows":
         command = f"tracert -h 15 {target}"
     else:

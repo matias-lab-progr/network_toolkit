@@ -31,6 +31,54 @@
       "reachable": true,
       "sample_times": [],
       "tool_type": "ping"
+    },
+    {
+      "target": "google.com",
+      "timestamp": "2025-09-20T03:30:47.175802",
+      "sent": 0,
+      "received": 0,
+      "lost": 0,
+      "loss_percent": 0.0,
+      "rtt_min": 0.0,
+      "rtt_avg": 0.0,
+      "rtt_max": 0.0,
+      "rtt_stddev": 0.0,
+      "ttl": 97,
+      "reachable": false,
+      "sample_times": [],
+      "tool_type": "ping"
+    },
+    {
+      "target": "google.com",
+      "timestamp": "2025-09-20T03:39:11.095951",
+      "sent": 4,
+      "received": 4,
+      "lost": 0,
+      "loss_percent": 0.0,
+      "rtt_min": 0.0,
+      "rtt_avg": 0.0,
+      "rtt_max": 0.0,
+      "rtt_stddev": 0.0,
+      "ttl": 0,
+      "reachable": true,
+      "sample_times": [],
+      "tool_type": "ping"
+    },
+    {
+      "target": "google.com",
+      "timestamp": "2025-09-20T03:41:46.474079",
+      "sent": 4,
+      "received": 4,
+      "lost": 0,
+      "loss_percent": 0.0,
+      "rtt_min": 0.0,
+      "rtt_avg": 0.0,
+      "rtt_max": 0.0,
+      "rtt_stddev": 0.0,
+      "ttl": 0,
+      "reachable": true,
+      "sample_times": [],
+      "tool_type": "ping"
     }
   ],
   "google.com_traceroute": [
@@ -282,6 +330,777 @@
       "reachable": false,
       "timestamp": "2025-09-19T23:14:20.431590",
       "tool_type": "traceroute"
+    },
+    {
+      "target": "google.com",
+      "total_hops": 0,
+      "timeout_hops": 0,
+      "private_ips": 0,
+      "max_latency": 0,
+      "hops": [],
+      "slow_hops": [],
+      "reachable": false,
+      "timestamp": "2025-09-20T03:31:10.880679",
+      "tool_type": "traceroute"
+    },
+    {
+      "target": "google.com",
+      "total_hops": 0,
+      "timeout_hops": 0,
+      "private_ips": 0,
+      "max_latency": 0,
+      "hops": [],
+      "slow_hops": [],
+      "reachable": false,
+      "timestamp": "2025-09-20T03:43:43.763464",
+      "tool_type": "traceroute"
+    },
+    {
+      "target": "google.com",
+      "total_hops": 0,
+      "timeout_hops": 0,
+      "private_ips": 0,
+      "max_latency": 0,
+      "hops": [],
+      "slow_hops": [],
+      "reachable": false,
+      "timestamp": "2025-09-20T03:46:06.279920",
+      "tool_type": "traceroute"
+    },
+    {
+      "target": "google.com",
+      "total_hops": 0,
+      "timeout_hops": 0,
+      "private_ips": 0,
+      "max_latency": 0,
+      "hops": [],
+      "slow_hops": [],
+      "reachable": false,
+      "raw_output": "Error: El comando 'traceroute' no est\u00e1 disponible. Inst\u00e1lalo con: sudo apt-get install traceroute",
+      "timestamp": "2025-09-20T03:51:36.718444",
+      "tool_type": "traceroute"
+    },
+    {
+      "target": "google.com",
+      "total_hops": 0,
+      "timeout_hops": 0,
+      "private_ips": 0,
+      "max_latency": 0,
+      "hops": [],
+      "slow_hops": [],
+      "reachable": false,
+      "raw_output": "Error: El comando 'traceroute' no est\u00e1 disponible. Inst\u00e1lalo con: sudo apt-get install traceroute",
+      "timestamp": "2025-09-20T03:56:33.711519",
+      "tool_type": "traceroute"
+    },
+    {
+      "target": "google.com",
+      "total_hops": 0,
+      "timeout_hops": 0,
+      "private_ips": 0,
+      "max_latency": 0,
+      "hops": [],
+      "slow_hops": [],
+      "reachable": false,
+      "raw_output": "\"traceroute\" no se reconoce como un comando interno o externo,\nprograma o archivo por lotes ejecutable.\n",
+      "timestamp": "2025-09-20T04:10:45.632224",
+      "tool_type": "traceroute"
+    },
+    {
+      "target": "google.com",
+      "total_hops": 0,
+      "timeout_hops": 0,
+      "private_ips": 0,
+      "max_latency": 0,
+      "hops": [],
+      "slow_hops": [],
+      "reachable": false,
+      "raw_output": "\"traceroute\" no se reconoce como un comando interno o externo,\nprograma o archivo por lotes ejecutable.\n",
+      "timestamp": "2025-09-20T04:15:41.510964",
+      "tool_type": "traceroute"
+    },
+    {
+      "target": "google.com",
+      "total_hops": 0,
+      "timeout_hops": 0,
+      "private_ips": 0,
+      "max_latency": 0,
+      "hops": [],
+      "slow_hops": [],
+      "reachable": false,
+      "raw_output": "\"traceroute\" no se reconoce como un comando interno o externo,\nprograma o archivo por lotes ejecutable.\n",
+      "timestamp": "2025-09-20T04:17:25.007362",
+      "tool_type": "traceroute"
+    },
+    {
+      "target": "google.com",
+      "total_hops": 15,
+      "timeout_hops": 2,
+      "private_ips": 11,
+      "max_latency": 270.0,
+      "hops": [
+        {
+          "hop": 1,
+          "times": [
+            "3 ms",
+            "5 ms",
+            "3 ms"
+          ],
+          "host": "10.176.137.120",
+          "ip": "10.176.137.120",
+          "is_private": true,
+          "timeouts": 0
+        },
+        {
+          "hop": 2,
+          "times": [
+            "*",
+            "*",
+            "*"
+          ],
+          "host": "Tiempo de espera agotado para esta solicitud.",
+          "ip": "Tiempo de espera agotado para esta solicitud.",
+          "is_private": false,
+          "timeouts": 3
+        },
+        {
+          "hop": 3,
+          "times": [
+            "104 ms",
+            "77 ms",
+            "72 ms"
+          ],
+          "host": "172.18.86.201",
+          "ip": "172.18.86.201",
+          "is_private": true,
+          "timeouts": 0
+        },
+        {
+          "hop": 4,
+          "times": [
+            "118 ms",
+            "77 ms",
+            "78 ms"
+          ],
+          "host": "172.31.237.42",
+          "ip": "172.31.237.42",
+          "is_private": true,
+          "timeouts": 0
+        },
+        {
+          "hop": 5,
+          "times": [
+            "82 ms",
+            "73 ms",
+            "88 ms"
+          ],
+          "host": "172.18.86.186",
+          "ip": "172.18.86.186",
+          "is_private": true,
+          "timeouts": 0
+        },
+        {
+          "hop": 6,
+          "times": [
+            "196 ms",
+            "74 ms",
+            "83 ms"
+          ],
+          "host": "172.16.66.196",
+          "ip": "172.16.66.196",
+          "is_private": true,
+          "timeouts": 0
+        },
+        {
+          "hop": 7,
+          "times": [
+            "*",
+            "*",
+            "*"
+          ],
+          "host": "Tiempo de espera agotado para esta solicitud.",
+          "ip": "Tiempo de espera agotado para esta solicitud.",
+          "is_private": false,
+          "timeouts": 3
+        },
+        {
+          "hop": 8,
+          "times": [
+            "91 ms",
+            "90 ms",
+            "78 ms"
+          ],
+          "host": "172.29.98.161",
+          "ip": "172.29.98.161",
+          "is_private": true,
+          "timeouts": 0
+        },
+        {
+          "hop": 9,
+          "times": [
+            "147 ms",
+            "270 ms",
+            "83 ms"
+          ],
+          "host": "172.18.86.130",
+          "ip": "172.18.86.130",
+          "is_private": true,
+          "timeouts": 0
+        },
+        {
+          "hop": 10,
+          "times": [
+            "98 ms",
+            "82 ms",
+            "87 ms"
+          ],
+          "host": "192.168.104.158",
+          "ip": "192.168.104.158",
+          "is_private": true,
+          "timeouts": 0
+        },
+        {
+          "hop": 11,
+          "times": [
+            "170 ms",
+            "85 ms",
+            "107 ms"
+          ],
+          "host": "172.31.197.113",
+          "ip": "172.31.197.113",
+          "is_private": true,
+          "timeouts": 0
+        },
+        {
+          "hop": 12,
+          "times": [
+            "117 ms",
+            "77 ms",
+            "85 ms"
+          ],
+          "host": "172.31.215.14",
+          "ip": "172.31.215.14",
+          "is_private": true,
+          "timeouts": 0
+        },
+        {
+          "hop": 13,
+          "times": [
+            "80 ms",
+            "80 ms",
+            "90 ms"
+          ],
+          "host": "192.168.8.133",
+          "ip": "192.168.8.133",
+          "is_private": true,
+          "timeouts": 0
+        },
+        {
+          "hop": 14,
+          "times": [
+            "91 ms",
+            "81 ms",
+            "79 ms"
+          ],
+          "host": "209.85.148.46",
+          "ip": "209.85.148.46",
+          "is_private": false,
+          "timeouts": 0
+        },
+        {
+          "hop": 15,
+          "times": [
+            "108 ms",
+            "82 ms",
+            "87 ms"
+          ],
+          "host": "64.233.174.147",
+          "ip": "64.233.174.147",
+          "is_private": false,
+          "timeouts": 0
+        }
+      ],
+      "slow_hops": [
+        {
+          "hop": 3,
+          "latency": 104.0,
+          "host": "172.18.86.201"
+        },
+        {
+          "hop": 4,
+          "latency": 118.0,
+          "host": "172.31.237.42"
+        },
+        {
+          "hop": 6,
+          "latency": 196.0,
+          "host": "172.16.66.196"
+        },
+        {
+          "hop": 9,
+          "latency": 270.0,
+          "host": "172.18.86.130"
+        },
+        {
+          "hop": 11,
+          "latency": 170.0,
+          "host": "172.31.197.113"
+        },
+        {
+          "hop": 12,
+          "latency": 117.0,
+          "host": "172.31.215.14"
+        },
+        {
+          "hop": 15,
+          "latency": 108.0,
+          "host": "64.233.174.147"
+        }
+      ],
+      "reachable": false,
+      "raw_output": "\nTraza a la direcci\u00a2n google.com [64.233.190.102]\nsobre un m\u00a0ximo de 15 saltos:\n\n  1     3 ms     5 ms     3 ms  10.176.137.120 \n  2     *        *        *     Tiempo de espera agotado para esta solicitud.\n  3   104 ms    77 ms    72 ms  172.18.86.201 \n  4   118 ms    77 ms    78 ms  172.31.237.42 \n  5    82 ms    73 ms    88 ms  172.18.86.186 \n  6   196 ms    74 ms    83 ms  172.16.66.196 \n  7     *        *        *     Tiempo de espera agotado para esta solicitud.\n  8    91 ms    90 ms    78 ms  172.29.98.161 \n  9   147 ms   270 ms    83 ms  172.18.86.130 \n 10    98 ms    82 ms    87 ms  192.168.104.158 \n 11   170 ms    85 ms   107 ms  172.31.197.113 \n 12   117 ms    77 ms    85 ms  172.31.215.14 \n 13    80 ms    80 ms    90 ms  192.168.8.133 \n 14    91 ms    81 ms    79 ms  209.85.148.46 \n 15   108 ms    82 ms    87 ms  64.233.174.147 \n\nTraza completa.\n",
+      "timestamp": "2025-09-20T04:23:43.349258",
+      "tool_type": "traceroute"
+    },
+    {
+      "target": "google.com",
+      "total_hops": 15,
+      "timeout_hops": 2,
+      "private_ips": 11,
+      "max_latency": 188.0,
+      "hops": [
+        {
+          "hop": 1,
+          "times": [
+            "4 ms",
+            "4 ms",
+            "3 ms"
+          ],
+          "host": "10.176.137.120",
+          "ip": "10.176.137.120",
+          "is_private": true,
+          "timeouts": 0
+        },
+        {
+          "hop": 2,
+          "times": [
+            "*",
+            "*",
+            "*"
+          ],
+          "host": "Tiempo de espera agotado para esta solicitud.",
+          "ip": "Tiempo de espera agotado para esta solicitud.",
+          "is_private": false,
+          "timeouts": 3
+        },
+        {
+          "hop": 3,
+          "times": [
+            "85 ms",
+            "79 ms",
+            "82 ms"
+          ],
+          "host": "172.18.86.201",
+          "ip": "172.18.86.201",
+          "is_private": true,
+          "timeouts": 0
+        },
+        {
+          "hop": 4,
+          "times": [
+            "73 ms",
+            "79 ms",
+            "80 ms"
+          ],
+          "host": "172.31.237.42",
+          "ip": "172.31.237.42",
+          "is_private": true,
+          "timeouts": 0
+        },
+        {
+          "hop": 5,
+          "times": [
+            "136 ms",
+            "75 ms",
+            "81 ms"
+          ],
+          "host": "172.18.86.186",
+          "ip": "172.18.86.186",
+          "is_private": true,
+          "timeouts": 0
+        },
+        {
+          "hop": 6,
+          "times": [
+            "91 ms",
+            "86 ms",
+            "81 ms"
+          ],
+          "host": "172.29.98.35",
+          "ip": "172.29.98.35",
+          "is_private": true,
+          "timeouts": 0
+        },
+        {
+          "hop": 7,
+          "times": [
+            "*",
+            "*",
+            "*"
+          ],
+          "host": "Tiempo de espera agotado para esta solicitud.",
+          "ip": "Tiempo de espera agotado para esta solicitud.",
+          "is_private": false,
+          "timeouts": 3
+        },
+        {
+          "hop": 8,
+          "times": [
+            "93 ms",
+            "77 ms",
+            "79 ms"
+          ],
+          "host": "172.29.98.161",
+          "ip": "172.29.98.161",
+          "is_private": true,
+          "timeouts": 0
+        },
+        {
+          "hop": 9,
+          "times": [
+            "188 ms",
+            "86 ms",
+            "83 ms"
+          ],
+          "host": "172.18.86.134",
+          "ip": "172.18.86.134",
+          "is_private": true,
+          "timeouts": 0
+        },
+        {
+          "hop": 10,
+          "times": [
+            "108 ms",
+            "79 ms",
+            "87 ms"
+          ],
+          "host": "192.168.104.158",
+          "ip": "192.168.104.158",
+          "is_private": true,
+          "timeouts": 0
+        },
+        {
+          "hop": 11,
+          "times": [
+            "93 ms",
+            "87 ms",
+            "74 ms"
+          ],
+          "host": "172.31.197.113",
+          "ip": "172.31.197.113",
+          "is_private": true,
+          "timeouts": 0
+        },
+        {
+          "hop": 12,
+          "times": [
+            "72 ms",
+            "73 ms",
+            "73 ms"
+          ],
+          "host": "172.31.215.14",
+          "ip": "172.31.215.14",
+          "is_private": true,
+          "timeouts": 0
+        },
+        {
+          "hop": 13,
+          "times": [
+            "101 ms",
+            "82 ms",
+            "76 ms"
+          ],
+          "host": "192.168.8.133",
+          "ip": "192.168.8.133",
+          "is_private": true,
+          "timeouts": 0
+        },
+        {
+          "hop": 14,
+          "times": [
+            "184 ms",
+            "84 ms",
+            "71 ms"
+          ],
+          "host": "209.85.148.46",
+          "ip": "209.85.148.46",
+          "is_private": false,
+          "timeouts": 0
+        },
+        {
+          "hop": 15,
+          "times": [
+            "147 ms",
+            "88 ms",
+            "79 ms"
+          ],
+          "host": "142.251.248.215",
+          "ip": "142.251.248.215",
+          "is_private": false,
+          "timeouts": 0
+        }
+      ],
+      "slow_hops": [
+        {
+          "hop": 5,
+          "latency": 136.0,
+          "host": "172.18.86.186"
+        },
+        {
+          "hop": 9,
+          "latency": 188.0,
+          "host": "172.18.86.134"
+        },
+        {
+          "hop": 10,
+          "latency": 108.0,
+          "host": "192.168.104.158"
+        },
+        {
+          "hop": 13,
+          "latency": 101.0,
+          "host": "192.168.8.133"
+        },
+        {
+          "hop": 14,
+          "latency": 184.0,
+          "host": "209.85.148.46"
+        },
+        {
+          "hop": 15,
+          "latency": 147.0,
+          "host": "142.251.248.215"
+        }
+      ],
+      "reachable": false,
+      "raw_output": "\nTraza a la direcci\u00a2n google.com [64.233.186.102]\nsobre un m\u00a0ximo de 15 saltos:\n\n  1     4 ms     4 ms     3 ms  10.176.137.120 \n  2     *        *        *     Tiempo de espera agotado para esta solicitud.\n  3    85 ms    79 ms    82 ms  172.18.86.201 \n  4    73 ms    79 ms    80 ms  172.31.237.42 \n  5   136 ms    75 ms    81 ms  172.18.86.186 \n  6    91 ms    86 ms    81 ms  172.29.98.35 \n  7     *        *        *     Tiempo de espera agotado para esta solicitud.\n  8    93 ms    77 ms    79 ms  172.29.98.161 \n  9   188 ms    86 ms    83 ms  172.18.86.134 \n 10   108 ms    79 ms    87 ms  192.168.104.158 \n 11    93 ms    87 ms    74 ms  172.31.197.113 \n 12    72 ms    73 ms    73 ms  172.31.215.14 \n 13   101 ms    82 ms    76 ms  192.168.8.133 \n 14   184 ms    84 ms    71 ms  209.85.148.46 \n 15   147 ms    88 ms    79 ms  142.251.248.215 \n\nTraza completa.\n",
+      "timestamp": "2025-09-20T04:28:10.925770",
+      "tool_type": "traceroute"
+    },
+    {
+      "target": "google.com",
+      "total_hops": 15,
+      "timeout_hops": 2,
+      "private_ips": 11,
+      "max_latency": 181.0,
+      "hops": [
+        {
+          "hop": 1,
+          "times": [
+            "3 ms",
+            "2 ms",
+            "3 ms"
+          ],
+          "host": "10.176.137.120",
+          "ip": "10.176.137.120",
+          "is_private": true,
+          "timeouts": 0
+        },
+        {
+          "hop": 2,
+          "times": [
+            "*",
+            "*",
+            "*"
+          ],
+          "host": "Tiempo de espera agotado para esta solicitud.",
+          "ip": "Tiempo de espera agotado para esta solicitud.",
+          "is_private": false,
+          "timeouts": 3
+        },
+        {
+          "hop": 3,
+          "times": [
+            "94 ms",
+            "79 ms",
+            "79 ms"
+          ],
+          "host": "172.18.86.201",
+          "ip": "172.18.86.201",
+          "is_private": true,
+          "timeouts": 0
+        },
+        {
+          "hop": 4,
+          "times": [
+            "94 ms",
+            "72 ms",
+            "77 ms"
+          ],
+          "host": "172.31.237.42",
+          "ip": "172.31.237.42",
+          "is_private": true,
+          "timeouts": 0
+        },
+        {
+          "hop": 5,
+          "times": [
+            "120 ms",
+            "83 ms",
+            "82 ms"
+          ],
+          "host": "172.18.86.186",
+          "ip": "172.18.86.186",
+          "is_private": true,
+          "timeouts": 0
+        },
+        {
+          "hop": 6,
+          "times": [
+            "82 ms",
+            "79 ms",
+            "79 ms"
+          ],
+          "host": "172.16.66.203",
+          "ip": "172.16.66.203",
+          "is_private": true,
+          "timeouts": 0
+        },
+        {
+          "hop": 7,
+          "times": [
+            "*",
+            "*",
+            "*"
+          ],
+          "host": "Tiempo de espera agotado para esta solicitud.",
+          "ip": "Tiempo de espera agotado para esta solicitud.",
+          "is_private": false,
+          "timeouts": 3
+        },
+        {
+          "hop": 8,
+          "times": [
+            "99 ms",
+            "76 ms",
+            "84 ms"
+          ],
+          "host": "172.29.98.161",
+          "ip": "172.29.98.161",
+          "is_private": true,
+          "timeouts": 0
+        },
+        {
+          "hop": 9,
+          "times": [
+            "122 ms",
+            "88 ms",
+            "73 ms"
+          ],
+          "host": "172.18.86.130",
+          "ip": "172.18.86.130",
+          "is_private": true,
+          "timeouts": 0
+        },
+        {
+          "hop": 10,
+          "times": [
+            "113 ms",
+            "87 ms",
+            "79 ms"
+          ],
+          "host": "192.168.104.158",
+          "ip": "192.168.104.158",
+          "is_private": true,
+          "timeouts": 0
+        },
+        {
+          "hop": 11,
+          "times": [
+            "95 ms",
+            "78 ms",
+            "75 ms"
+          ],
+          "host": "172.31.197.113",
+          "ip": "172.31.197.113",
+          "is_private": true,
+          "timeouts": 0
+        },
+        {
+          "hop": 12,
+          "times": [
+            "73 ms",
+            "82 ms",
+            "72 ms"
+          ],
+          "host": "172.31.215.14",
+          "ip": "172.31.215.14",
+          "is_private": true,
+          "timeouts": 0
+        },
+        {
+          "hop": 13,
+          "times": [
+            "78 ms",
+            "80 ms",
+            "70 ms"
+          ],
+          "host": "192.168.8.133",
+          "ip": "192.168.8.133",
+          "is_private": true,
+          "timeouts": 0
+        },
+        {
+          "hop": 14,
+          "times": [
+            "87 ms",
+            "87 ms",
+            "96 ms"
+          ],
+          "host": "209.85.148.46",
+          "ip": "209.85.148.46",
+          "is_private": false,
+          "timeouts": 0
+        },
+        {
+          "hop": 15,
+          "times": [
+            "181 ms",
+            "84 ms",
+            "95 ms"
+          ],
+          "host": "142.251.248.215",
+          "ip": "142.251.248.215",
+          "is_private": false,
+          "timeouts": 0
+        }
+      ],
+      "slow_hops": [
+        {
+          "hop": 5,
+          "latency": 120.0,
+          "host": "172.18.86.186"
+        },
+        {
+          "hop": 9,
+          "latency": 122.0,
+          "host": "172.18.86.130"
+        },
+        {
+          "hop": 10,
+          "latency": 113.0,
+          "host": "192.168.104.158"
+        },
+        {
+          "hop": 15,
+          "latency": 181.0,
+          "host": "142.251.248.215"
+        }
+      ],
+      "reachable": true,
+      "raw_output": "\nTraza a la direcci\u00a2n google.com [142.251.0.138]\nsobre un m\u00a0ximo de 15 saltos:\n\n  1     3 ms     2 ms     3 ms  10.176.137.120 \n  2     *        *        *     Tiempo de espera agotado para esta solicitud.\n  3    94 ms    79 ms    79 ms  172.18.86.201 \n  4    94 ms    72 ms    77 ms  172.31.237.42 \n  5   120 ms    83 ms    82 ms  172.18.86.186 \n  6    82 ms    79 ms    79 ms  172.16.66.203 \n  7     *        *        *     Tiempo de espera agotado para esta solicitud.\n  8    99 ms    76 ms    84 ms  172.29.98.161 \n  9   122 ms    88 ms    73 ms  172.18.86.130 \n 10   113 ms    87 ms    79 ms  192.168.104.158 \n 11    95 ms    78 ms    75 ms  172.31.197.113 \n 12    73 ms    82 ms    72 ms  172.31.215.14 \n 13    78 ms    80 ms    70 ms  192.168.8.133 \n 14    87 ms    87 ms    96 ms  209.85.148.46 \n 15   181 ms    84 ms    95 ms  142.251.248.215 \n\nTraza completa.\n",
+      "timestamp": "2025-09-20T04:33:22.187226",
+      "tool_type": "traceroute"
     }
   ],
   "google.com_whois": [
@@ -319,6 +1138,24 @@
       "days_until_expiration": 1090,
       "success": true,
       "timestamp": "2025-09-19T23:56:35.123493",
+      "tool_type": "whois"
+    },
+    {
+      "domain": "google.com",
+      "creation_date": "1997-09-15",
+      "expiration_date": "2028-09-14",
+      "updated_date": "2019-09-09",
+      "registrar": "MarkMonitor, Inc.",
+      "name_servers": [
+        "NS1.GOOGLE.COM",
+        "NS2.GOOGLE.COM",
+        "NS3.GOOGLE.COM",
+        "NS4.GOOGLE.COM"
+      ],
+      "domain_age_years": 28,
+      "days_until_expiration": 1089,
+      "success": true,
+      "timestamp": "2025-09-20T03:31:38.111185",
       "tool_type": "whois"
     }
   ],

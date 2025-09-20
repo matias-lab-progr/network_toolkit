@@ -69,117 +69,125 @@ def analyse_ping_output(output, target):
         analysis_lines.append(f"{Fore.RED}❌ Host {target} no alcanzable{Style.RESET_ALL}")
         return "\n".join(analysis_lines), metrics
     
+    # Asumir que es alcanzable inicialmente
     metrics["reachable"] = True
     analysis_lines.append(f"{Fore.GREEN}✅ Host {target} alcanzable{Style.RESET_ALL}")
 
-    # 1) Intentar extraer paquetes (Unix: "4 packets transmitted, 4 received, 0% packet loss")
-    # Linux/mac pattern
+    # 1) Extraer tiempos individuales de las respuestas (para Windows y Unix)
+    times = []
+    ttl_values = []
+    response_count = 0
+    
     for ln in lines:
-        # packets transmitted, received, packet loss
-        m = re.search(r'(\d+)\s+packets\s+transmitted[, ]+\s*(\d+)\s+(?:received|received,)\b.*?(\d+)%', ln, re.IGNORECASE)
+        # Patrón para respuestas de Windows: "Respuesta desde 192.168.1.1: bytes=32 tiempo=15ms TTL=64"
+        m = re.search(r'Respuesta desde .+? tiempo[=:]([\d<>]+)\s*ms.*TTL[=:](\d+)', ln, re.IGNORECASE)
+        if not m:
+            # Patrón alternativo para Windows: "Reply from 192.168.1.1: bytes=32 time=15ms TTL=64"
+            m = re.search(r'Reply from .+? time[=:]([\d<>]+)\s*ms.*TTL[=:](\d+)', ln, re.IGNORECASE)
+        if not m:
+            # Patrón para Unix: "64 bytes from 192.168.1.1: icmp_seq=1 ttl=64 time=15.3 ms"
+            m = re.search(r'from .+? ttl=(\d+).*time[=:]([\d.]+)\s*ms', ln, re.IGNORECASE)
+            if m:
+                ttl_values.append(parse_int(m.group(1)))
+                times.append(safe_float(m.group(2)))
+                response_count += 1
+                continue
+        
+        if m:
+            # Para patrones de Windows
+            time_val = m.group(1)
+            ttl_val = m.group(2) if len(m.groups()) > 1 else None
+            
+            # Procesar tiempo (puede ser "<1ms")
+            if '<' in time_val:
+                times.append(0.5)
+            else:
+                times.append(safe_float(re.sub(r'[^\d.]', '', time_val)))
+            
+            if ttl_val:
+                ttl_values.append(parse_int(ttl_val))
+            
+            response_count += 1
+
+    # 2) Extraer estadísticas de paquetes
+    # Windows pattern: "Paquetes: enviados = 4, recibidos = 4, perdidos = 0"
+    for ln in lines:
+        # Patrón español Windows
+        m = re.search(r'enviados\s*=\s*(\d+)\s*,\s*recibidos\s*=\s*(\d+)\s*,\s*perdidos\s*=\s*(\d+)', ln, re.IGNORECASE)
+        if not m:
+            # Patrón inglés Windows
+            m = re.search(r'Sent\s*=\s*(\d+)\s*,\s*Received\s*=\s*(\d+)\s*,\s*Lost\s*=\s*(\d+)', ln, re.IGNORECASE)
+        if not m:
+            # Patrón Unix
+            m = re.search(r'(\d+)\s+packets\s+transmitted[, ]+\s*(\d+)\s+received', ln, re.IGNORECASE)
+        
         if m:
             metrics["sent"] = parse_int(m.group(1))
             metrics["received"] = parse_int(m.group(2))
-            metrics["loss_percent"] = parse_int(m.group(3))
-            metrics["lost"] = None if metrics["sent"] is None or metrics["received"] is None else metrics["sent"] - metrics["received"]
-            break
-
-    # Windows pattern: "Packets: Sent = 4, Received = 4, Lost = 0 (0% loss),"
-    if metrics["sent"] is None:
-        for ln in lines:
-            m = re.search(r'Sent\s*=\s*(\d+)\s*,\s*Received\s*=\s*(\d+)\s*,\s*Lost\s*=\s*(\d+)', ln, re.IGNORECASE)
-            if m:
-                metrics["sent"] = parse_int(m.group(1))
-                metrics["received"] = parse_int(m.group(2))
+            if len(m.groups()) > 2:
                 metrics["lost"] = parse_int(m.group(3))
-                # buscar % loss si aparece
-                m2 = re.search(r'\((\d+)%\s*loss\)|\((\d+)%\s*perdidos\)', ln, re.IGNORECASE)
-                if m2:
-                    metrics["loss_percent"] = parse_int(m2.group(1) or m2.group(2))
-                elif metrics["sent"] is not None:
-                    metrics["loss_percent"] = 0 if metrics["lost"] == 0 else round(metrics["lost"] / metrics["sent"] * 100, 2)
-                break
-
-    # Si aún no se detectó, intentar patrón en español "4 paquetes transmitidos, 4 recibidos, 0% perdidos"
-    if metrics["sent"] is None:
-        for ln in lines:
-            m = re.search(r'(\d+)\s+paquetes\s+transmitidos[, ]+\s*(\d+)\s+(?:recibidos|recibido)[, ]+.*?(\d+)%', ln, re.IGNORECASE)
-            if m:
-                metrics["sent"] = parse_int(m.group(1))
-                metrics["received"] = parse_int(m.group(2))
-                metrics["loss_percent"] = parse_int(m.group(3))
-                metrics["lost"] = None if metrics["sent"] is None or metrics["received"] is None else metrics["sent"] - metrics["received"]
-                break
-
-    # 2) Extraer valores RTT (Unix: rtt min/avg/max/mdev = 0.123/0.123/0.123/0.000 ms)
-    for ln in lines:
-        m = re.search(r'=\s*([\d.]+)\/([\d.]+)\/([\d.]+)\/([\d.]+)\s*ms', ln)  # iputils
-        if not m:
-            m = re.search(r'round-trip.*=\s*([\d.]+)\/([\d.]+)\/([\d.]+)\/([\d.]+)\s*ms', ln, re.IGNORECASE)
-        if m:
-            metrics["rtt_min"] = safe_float(m.group(1))
-            metrics["rtt_avg"] = safe_float(m.group(2))
-            metrics["rtt_max"] = safe_float(m.group(3))
-            metrics["rtt_stddev"] = safe_float(m.group(4))
-            break
-
-    # 2b) Windows block: look for "Minimum = Xms, Maximum = Yms, Average = Zms"
-    if metrics["rtt_avg"] is None:
-        for ln in lines:
-            m = re.search(r'Minimum\s*=\s*([\d<>]+)ms.*Maximum\s*=\s*([\d<>]+)ms.*Average\s*=\s*([\d<>]+)ms', ln, re.IGNORECASE)
-            if m:
-                def interpret_ms(s):
-                    if '<' in s:
-                        return 0.5
-                    return safe_float(re.sub(r'[^\d.]','',s))
-                metrics["rtt_min"] = interpret_ms(m.group(1))
-                metrics["rtt_max"] = interpret_ms(m.group(2))
-                metrics["rtt_avg"] = interpret_ms(m.group(3))
-                break
-
-    # 3) Si no hay resumen RTT, extraer todos los "time=" de respuestas y calcular estadísticas
-    if metrics["rtt_avg"] is None:
-        times = []
-        for ln in lines:
-            # ejemplos: time=0.123 ms  | time=1ms | time<1ms
-            m = re.search(r'time[=<]?\s*([\d.]+)\s*ms', ln, re.IGNORECASE)
-            if m:
-                val = safe_float(m.group(1))
-                if val is not None:
-                    times.append(val)
-                continue
-            # Windows format "time<1ms" -> approximate
-            if re.search(r'time\s*<\s*1\s*ms', ln, re.IGNORECASE):
-                times.append(0.5)
-        if times:
-            metrics["sample_times"] = times
-            metrics["rtt_min"] = min(times)
-            metrics["rtt_max"] = max(times)
-            metrics["rtt_avg"] = sum(times) / len(times)
-            # stddev
-            if len(times) > 1:
-                mean = metrics["rtt_avg"]
-                variance = sum((t - mean) ** 2 for t in times) / len(times)
-                metrics["rtt_stddev"] = math.sqrt(variance)
             else:
-                metrics["rtt_stddev"] = 0.0
-
-    # 4) TTL: buscar la primera aparición de TTL= o ttl=
-    for ln in lines:
-        m = re.search(r'TTL=(\d+)', ln, re.IGNORECASE)
-        if not m:
-            m = re.search(r'ttl=(\d+)', ln, re.IGNORECASE)
-        if m:
-            metrics["ttl"] = parse_int(m.group(1))
+                metrics["lost"] = metrics["sent"] - metrics["received"] if metrics["sent"] is not None and metrics["received"] is not None else 0
+            
+            # Calcular porcentaje de pérdida
+            if metrics["sent"] and metrics["sent"] > 0:
+                metrics["loss_percent"] = round((metrics["lost"] / metrics["sent"]) * 100, 2)
             break
 
-    # 5) Si no tenemos loss_percent pero sí sent/received, calcularlo
-    if metrics["loss_percent"] is None and metrics["sent"] is not None and metrics["received"] is not None:
-        metrics["lost"] = metrics["sent"] - metrics["received"]
-        try:
-            metrics["loss_percent"] = round(metrics["lost"] / metrics["sent"] * 100, 2) if metrics["sent"] > 0 else None
-        except:
-            metrics["loss_percent"] = None
+    # 3) Extraer estadísticas RTT de Windows: "Mínimo = 80ms, Máximo = 93ms, Media = 85ms"
+    for ln in lines:
+        m = re.search(r'M[ií]nimo\s*=\s*([\d<>]+)\s*ms.*M[áa]ximo\s*=\s*([\d<>]+)\s*ms.*Media\s*=\s*([\d<>]+)\s*ms', ln, re.IGNORECASE)
+        if not m:
+            m = re.search(r'Minimum\s*=\s*([\d<>]+)\s*ms.*Maximum\s*=\s*([\d<>]+)\s*ms.*Average\s*=\s*([\d<>]+)\s*ms', ln, re.IGNORECASE)
+        
+        if m:
+            def parse_ms_value(val):
+                if '<' in val:
+                    return 0.5
+                return safe_float(re.sub(r'[^\d.]', '', val))
+            
+            metrics["rtt_min"] = parse_ms_value(m.group(1))
+            metrics["rtt_max"] = parse_ms_value(m.group(2))
+            metrics["rtt_avg"] = parse_ms_value(m.group(3))
+            break
+
+    # 4) Si no tenemos estadísticas RTT pero tenemos tiempos individuales, calcularlas
+    if metrics["rtt_avg"] is None and times:
+        metrics["sample_times"] = times
+        metrics["rtt_min"] = min(times)
+        metrics["rtt_max"] = max(times)
+        metrics["rtt_avg"] = sum(times) / len(times)
+        if len(times) > 1:
+            mean = metrics["rtt_avg"]
+            variance = sum((t - mean) ** 2 for t in times) / len(times)
+            metrics["rtt_stddev"] = math.sqrt(variance)
+        else:
+            metrics["rtt_stddev"] = 0.0
+
+    # 5) Extraer TTL si no se encontró en las respuestas individuales
+    if not ttl_values and metrics["ttl"] == 0:
+        for ln in lines:
+            m = re.search(r'TTL[=:](\d+)', ln, re.IGNORECASE)
+            if m:
+                metrics["ttl"] = parse_int(m.group(1))
+                break
+
+    # 6) Si no tenemos métricas de paquetes pero tenemos respuestas, inferirlas
+    if metrics["sent"] == 0 and response_count > 0:
+        metrics["received"] = response_count
+        metrics["sent"] = response_count  # Asumimos que todos los paquetes enviados fueron recibidos
+        metrics["lost"] = 0
+        metrics["loss_percent"] = 0.0
+
+    # VERIFICACIÓN FINAL: Si no se recibió ningún paquete, no es alcanzable
+    if metrics.get("received", 0) == 0:
+        metrics["reachable"] = False
+        if "✅ Host" in analysis_lines[1]:
+            analysis_lines[1] = f"{Fore.RED}❌ Host {target} NO alcanzable{Style.RESET_ALL}"
+    else:
+        metrics["reachable"] = True
+        if "❌ Host" in analysis_lines[1]:
+            analysis_lines[1] = f"{Fore.GREEN}✅ Host {target} alcanzable{Style.RESET_ALL}"
 
     # --- Generar análisis en texto (español) ---
     # 1. Pérdida de paquetes
@@ -189,7 +197,6 @@ def analyse_ping_output(output, target):
     else:
         loss_color = Fore.GREEN if lp == 0 else (Fore.YELLOW if lp <= 2 else (Fore.MAGENTA if lp <= 5 else Fore.RED))
         analysis_lines.append(f"• Pérdida de paquetes: {loss_color}{lp}%{Style.RESET_ALL}")
-        # Interpretación
         if lp == 0:
             analysis_lines.append("  → Excelente: no hay pérdida de paquetes.")
         elif lp <= 2:
@@ -208,7 +215,6 @@ def analyse_ping_output(output, target):
         analysis_lines.append(f"• Latencia (RTT): min={fmt_ms(minv)}, avg={fmt_ms(avg)}, max={fmt_ms(maxv)}")
         if stddev is not None:
             analysis_lines.append(f"  → Jitter/StdDev aproximado: {fmt_ms(stddev)}")
-        # Categorizar
         if avg < 50:
             analysis_lines.append(f"  → Latencia excelente ({avg:.1f} ms). Adecuada para juegos/videollamadas.")
         elif avg < 100:
@@ -217,12 +223,11 @@ def analyse_ping_output(output, target):
             analysis_lines.append(f"  → Latencia moderada ({avg:.1f} ms). Puede afectar aplicaciones en tiempo real.")
         else:
             analysis_lines.append(f"  → Latencia alta ({avg:.1f} ms). Revisar ruta/ISP.")
-
     else:
         analysis_lines.append(f"• Latencia (RTT): {Fore.YELLOW}No disponible{Style.RESET_ALL}")
 
     # 3. TTL y deducción SO aproximada
-    if metrics["ttl"] is not None:
+    if metrics["ttl"] is not None and metrics["ttl"] > 0:
         ttl = metrics["ttl"]
         analysis_lines.append(f"• TTL (Time To Live): {Fore.WHITE}{ttl}{Style.RESET_ALL}")
         if ttl <= 64:
@@ -237,7 +242,6 @@ def analyse_ping_output(output, target):
 
     # 4. Recomendaciones prácticas (diagnóstico)
     analysis_lines.append("\n• Recomendaciones / siguientes pasos:")
-    # Prioritizar según métricas
     if lp is not None and lp > 5:
         analysis_lines.append("  - Alta pérdida detectada: Ejecutar pruebas desde otro punto de la red (otra máquina), comprobar cableado/puerto, y contactar ISP si el problema persiste.")
         analysis_lines.append("  - Ejecutar `mtr <host>` (Linux/macOS) o `pathping <host>` (Windows) para identificar dónde ocurre la pérdida.")
@@ -246,7 +250,7 @@ def analyse_ping_output(output, target):
         analysis_lines.append("  - Latencia muy alta: probar trazas (`traceroute` / `tracert`) y contactar al proveedor si el cuello de botella está fuera de la red local.")
     else:
         analysis_lines.append("  - Si observas jitter o picos, realiza pruebas sostenidas (MTR) para localizar el salto problemático.")
-        analysis_lines.append("  - Para pruebas más precisas, usar `ping` con payload y tamano: `ping -s 1400 <host>` (Linux).")
+        analysis_lines.append("  - Para pruebas más precisas, usar `ping` con payload y tamaño: `ping -s 1400 <host>` (Linux).")
     analysis_lines.append("  - Comprueba la carga del equipo local (CPU/uso de NIC) y evita Wi-Fi si buscas diagnóstico de calidad de enlace.")
     analysis_lines.append("  - Si es una red empresarial: revisa duplex mismatch y configuración del switch hacia el host.")
 
@@ -279,8 +283,14 @@ def analyze_traceroute_output(output, target):
         "max_latency": 0,
         "hops": [],
         "slow_hops": [],
-        "reachable": False
+        "reachable": False,
+        "raw_output": output  # Guardar output original para debugging
     }
+
+    # Si el output está vacío o es un mensaje de error
+    if not output or "Error" in output or "error" in output:
+        analysis_lines.append(f"{Fore.RED}❌ Error en traceroute: {output}{Style.RESET_ALL}")
+        return "\n".join(analysis_lines), metrics
 
     lines = output.splitlines()
     
@@ -293,7 +303,7 @@ def analyze_traceroute_output(output, target):
     
     def is_private_ip(ip):
         """Verifica si una IP es privada"""
-        if not ip or ip == '*' or 'Tiempo' in ip:
+        if not ip or ip == '*' or ip in ['Tiempo', 'timeout', 'time', 'exceeded']:
             return False
             
         # Método simplificado para verificar IPs privadas
@@ -303,7 +313,7 @@ def analyze_traceroute_output(output, target):
             return True
         return False
     
-    # Procesar cada línea
+    # Procesar cada línea - patrones para Windows tracert
     for line in lines:
         line = line.strip()
         
@@ -311,31 +321,26 @@ def analyze_traceroute_output(output, target):
         if not line or 'traceroute' in line.lower() or 'tracing' in line.lower() or 'traza' in line.lower():
             continue
         
-        # Buscar líneas que comienzan con número (saltos)
+        # Patrón para Windows tracert: "1     1 ms     1 ms     1 ms  192.168.1.1"
         if re.match(r'^\s*\d+\s+', line):
-            # Usar expresión regular para dividir correctamente
-            match = re.match(r'^\s*(\d+)\s+([^\s]+)\s+([^\s]+)\s+([^\s]+)\s+(.*)$', line)
-            if match:
+            # Dividir la línea en partes
+            parts = re.split(r'\s{2,}', line)  # Dividir por 2+ espacios
+            if len(parts) >= 5:
                 try:
-                    hop_num = int(match.group(1))
-                    time1 = match.group(2)
-                    time2 = match.group(3)
-                    time3 = match.group(4)
-                    host = match.group(5).strip()
+                    hop_num = int(parts[0].strip())
+                    time1 = parts[1].strip()
+                    time2 = parts[2].strip()
+                    time3 = parts[3].strip()
+                    host = parts[4].strip()
                     
                     # Extraer IP si está disponible
                     ip_match = re.search(r'(\d+\.\d+\.\d+\.\d+)', host)
                     ip = ip_match.group(1) if ip_match else host
                     
-                    # Limpiar el hostname (quitar texto adicional)
-                    if ip and ip != host:
-                        # Si encontramos una IP, usarla como host principal
-                        host = ip
-                    
                     # Contar timeouts
                     timeouts = 0
                     for t in [time1, time2, time3]:
-                        if t == '*' or 'Tiempo' in t:
+                        if t == '*' or 'timeout' in t.lower() or 'exceeded' in t.lower():
                             timeouts += 1
                     
                     hop_data = {
@@ -355,14 +360,33 @@ def analyze_traceroute_output(output, target):
     # Analizar los datos recolectados
     total_hops = len(hops)
     metrics["total_hops"] = total_hops
+
+    # Verificar si llegó al destino (último salto contiene el target o IP relacionada)
+    if hops:
+        last_hop = hops[-1]
+        target_clean = target.replace('www.', '').lower()
+        last_hop_host = last_hop['host'].lower()
+        last_hop_ip = last_hop['ip'].lower()
     
-    # Verificar si llegó al destino (último salto contiene el target)
-    if hops and (target in hops[-1]['host'] or target in hops[-1]['ip']):
-        metrics["reachable"] = True
-        analysis_lines.append(f"{Fore.GREEN}✅ Ruta completada hasta el destino{Style.RESET_ALL}")
+        # Verificar si llegó al destino de varias maneras
+        reached_destination = (
+            target_clean in last_hop_host or
+            target_clean in last_hop_ip or
+            any(target_clean in hop['host'].lower() for hop in hops) or
+            any(target_clean in hop['ip'].lower() for hop in hops) or
+            # Si el último salto es una IP pública (no privada) probablemente llegó
+            (not last_hop['is_private'] and last_hop['timeouts'] == 0)
+        )
+    
+        if reached_destination:
+            metrics["reachable"] = True
+            analysis_lines.append(f"{Fore.GREEN}✅ Ruta completada hasta el destino{Style.RESET_ALL}")
+        else:
+            metrics["reachable"] = False
+            analysis_lines.append(f"{Fore.YELLOW}⚠️  Ruta no completada hasta el destino{Style.RESET_ALL}")
     else:
         metrics["reachable"] = False
-        analysis_lines.append(f"{Fore.YELLOW}⚠️  Ruta no completada hasta el destino{Style.RESET_ALL}")
+        analysis_lines.append(f"{Fore.RED}❌ No se detectaron saltos en el traceroute{Style.RESET_ALL}")
     
     # Diccionario para almacenar la máxima latencia por salto
     max_latency_by_hop = {}
