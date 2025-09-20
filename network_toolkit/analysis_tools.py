@@ -654,43 +654,26 @@ def analyze_whois_output(output: str, domain: str) -> Tuple[str, Dict[str, Any]]
 
     return "\n".join(analysis_lines), metrics
 
-def analyze_dns_output(output, domain, record_type='A'):
+def analyze_dns_output_simple(output, domain, record_type='A'):
     """
-    Analiza la salida de DNS lookup y proporciona información resumida
-    
-    Returns:
-        tuple: (analysis_text, metrics)
+    Análisis DNS simplificado sin métricas complejas
     """
     analysis_lines = []
     analysis_lines.append(f"{Fore.CYAN}--- ANÁLISIS DNS: {domain} ({record_type}) ---{Style.RESET_ALL}")
 
-    metrics = {
-        'domain': domain,
-        'record_type': record_type,
-        'records_found': 0,
-        'ips': [],
-        'ttl_min': None,
-        'ttl_avg': None,
-        'ttl_max': None,
-        'response_time': None,
-        'success': False,
-        'timestamp': datetime.now().isoformat()
-    }
-
     lines = output.split('\n')
     ip_addresses = []
-    ttl_values = []
     
     for line in lines:
         line = line.strip()
         
         # Buscar IP addresses (IPv4 e IPv6)
         ipv4_match = re.search(r'\b(?:\d{1,3}\.){3}\d{1,3}\b', line)
-        ipv6_match = re.search(r'([0-9a-fA-F:]+:+)+[0-9a-fA-F]+', line)  # IPv6 básico
+        ipv6_match = re.search(r'([0-9a-fA-F:]+:+)+[0-9a-fA-F]+', line)
         
         if ipv4_match:
             ip = ipv4_match.group()
-            # Excluir IPs locales/common
+            # Excluir IPs locales
             if not ip.startswith(('10.', '192.168.', '172.16.', '172.17.', '172.18.', '172.19.', 
                                 '172.20.', '172.21.', '172.22.', '172.23.', '172.24.', '172.25.',
                                 '172.26.', '172.27.', '172.28.', '172.29.', '172.30.', '172.31.')):
@@ -703,55 +686,30 @@ def analyze_dns_output(output, domain, record_type='A'):
             if not ip.startswith(('fe80:', '::1', 'fc00:', 'fd00:')):
                 if ip not in ip_addresses:
                     ip_addresses.append(ip)
-        
-        # Buscar TTL values
-        ttl_match = re.search(r'TTL\s*=\s*(\d+)', line, re.IGNORECASE)
-        if ttl_match:
-            ttl = int(ttl_match.group(1))
-            ttl_values.append(ttl)
     
-    metrics['ips'] = ip_addresses
-    metrics['records_found'] = len(ip_addresses)
-    metrics['success'] = metrics['records_found'] > 0
-    
-    if ttl_values:
-        metrics['ttl_min'] = min(ttl_values)
-        metrics['ttl_max'] = max(ttl_values)
-        metrics['ttl_avg'] = sum(ttl_values) / len(ttl_values)
-
-    # Generar análisis
+    # Generar análisis simple
     analysis_lines.append(f"• Dominio: {domain}")
     analysis_lines.append(f"• Tipo de registro: {record_type}")
-    analysis_lines.append(f"• Registros encontrados: {metrics['records_found']}")
+    analysis_lines.append(f"• Direcciones encontradas: {len(ip_addresses)}")
     
-    if metrics['records_found'] > 0:
-        analysis_lines.append(f"• Direcciones IP encontradas:")
-        for ip in metrics['ips'][:5]:
+    if ip_addresses:
+        analysis_lines.append(f"• IPs encontradas:")
+        for ip in ip_addresses[:6]:  # Mostrar máximo 6 IPs
             analysis_lines.append(f"  - {ip}")
-        if len(metrics['ips']) > 5:
-            analysis_lines.append(f"  - ... y {len(metrics['ips']) - 5} más")
-        
-        if metrics['ttl_avg']:
-            analysis_lines.append(f"• TTL: min={metrics['ttl_min']}s, avg={metrics['ttl_avg']:.1f}s, max={metrics['ttl_max']}s")
-            
-            # Análisis de TTL
-            if metrics['ttl_avg'] < 300:
-                analysis_lines.append(f"  {Fore.YELLOW}⚠️  TTL bajo - Puede indicar CDN o balanceo de carga{Style.RESET_ALL}")
-            elif metrics['ttl_avg'] > 86400:
-                analysis_lines.append(f"  {Fore.GREEN}✅ TTL alto - Configuración estable{Style.RESET_ALL}")
-    
+        if len(ip_addresses) > 6:
+            analysis_lines.append(f"  - ... y {len(ip_addresses) - 6} más")
     else:
         analysis_lines.append(f"{Fore.YELLOW}• No se encontraron registros {record_type}{Style.RESET_ALL}")
     
-    # Recomendaciones
+    # Recomendaciones básicas
     analysis_lines.append(f"\n{Fore.CYAN}• Recomendaciones:{Style.RESET_ALL}")
-    if record_type == 'A' and metrics['records_found'] > 1:
-        analysis_lines.append("  - Múltiples IPs detectadas: posible balanceo de carga o CDN")
-    if metrics['records_found'] == 0:
+    if record_type == 'A' and len(ip_addresses) > 1:
+        analysis_lines.append("  - Múltiples IPs: posible balanceo de carga o CDN")
+    elif len(ip_addresses) == 0:
         analysis_lines.append("  - Intentar con otros tipos de registro (AAAA, MX, NS, TXT)")
     
     analysis_lines.append(f"{Fore.CYAN}{'-'*50}{Style.RESET_ALL}")
 
-    return "\n".join(analysis_lines), metrics
+    return "\n".join(analysis_lines)
 
 

@@ -43,7 +43,7 @@ from .analysis_tools import (
     analyse_ping_output,
     analyze_traceroute_output,
     analyze_whois_output,
-    analyze_dns_output
+    analyze_dns_output_simple
 )
 
 from .utils import (
@@ -100,7 +100,7 @@ __all__ = [
     'analyse_ping_output',
     'analyze_traceroute_output',
     'analyze_whois_output',
-    'analyze_dns_output',
+    'analyze_dns_output_simple',
     'init_colorama',
     'is_valid_ip',
     'is_valid_domain',

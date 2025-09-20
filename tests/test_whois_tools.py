@@ -4,7 +4,6 @@ import subprocess
 from unittest.mock import MagicMock, patch, mock_open
 from network_toolkit.whois_tools import (
     get_whois_info,
-    get_whois_info_enhanced
 )
 
 class TestWhoisTools:

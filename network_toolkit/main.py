@@ -48,7 +48,7 @@ from .utils import (
 )
 
 from .analysis_tools import (
-    analyze_dns_output,
+    analyze_dns_output_simple,
     analyze_traceroute_output,
     analyse_ping_output,
     analyze_whois_output
@@ -207,20 +207,9 @@ def handle_dns_lookup_option(current_os):
     print(f"\n{Fore.CYAN}Resultado de DNS Lookup para {target}:{Style.RESET_ALL}")
     print(output)
     
-    # Analizar resultados
-    analysis, metrics = analyze_dns_output(output, target, record_type)
+    # Análisis básico (sin métricas complejas)
+    analysis = analyze_dns_output_simple(output, target, record_type)
     print(f"\n{analysis}")
-    
-    # Guardar en historial
-    if network_history.save_result(target, "dns_lookup", metrics):
-        print(f"{Fore.GREEN}✅ Resultados de DNS guardados en historial{Style.RESET_ALL}")
-    else:
-        print(f"{Fore.YELLOW}⚠️  No se pudo guardar en historial{Style.RESET_ALL}")
-    
-    # Preguntar si guardar reporte
-    save_report = input(f"\n{Fore.YELLOW}¿Desea guardar un reporte completo? (s/N): {Style.RESET_ALL}").lower()
-    if save_report == "s":
-        save_network_report(target, "dns_lookup", output, analysis, metrics)
 
 def handle_professional_dns_option():
     # Maneja la opción de consulta DNS profesional
@@ -597,20 +586,6 @@ def show_network_summary():
             
             # Usar el target mejorado
             target = display_target
-        
-        elif tool_type == "dns_lookup":
-            metrics = entry.get("metrics", {})
-            record_type = metrics.get("record_type", "A")
-            records_found = metrics.get("records_found", 0)
-    
-            if metrics.get("success", False):
-                status = f"{Fore.GREEN}Éxito{Style.RESET_ALL}"
-                metrics_text = f"{records_found} registros {record_type}"
-            else:
-                status = f"{Fore.RED}Error{Style.RESET_ALL}"
-                metrics_text = f"Error: {metrics.get('error', 'Desconocido')}"
-    
-            print(f"{tool_type:<12} {target:<20} {last_check:<20} {status:<25} {metrics_text:<30}")
 
         print(f"{tool_type:<12} {target:<20} {last_check:<20} {status:<25} {metrics_text:<30}")
 
@@ -697,26 +672,6 @@ def show_detailed_network_history():
                     print(f"  Estado: {Fore.RED}Error de localización{Style.RESET_ALL}")
                     print(f"  - Error: {entry.get('error', 'Desconocido')}")
 
-            elif tool_type == "dns_lookup":
-                if entry.get("success", False):
-                    print(f"  Estado: {Fore.GREEN}Consulta exitosa{Style.RESET_ALL}")
-                    print(f"  - Tipo: {entry.get('record_type', 'A')}")
-                    print(f"  - Registros encontrados: {entry.get('records_found', 0)}")
-                    print(f"  - Tiempo respuesta: {entry.get('response_time', 'N/A')}ms")
-        
-                    if entry.get('ips'):
-                        print(f"  - IPs encontradas: {len(entry.get('ips', []))}")
-                        for ip in entry.get('ips', [])[:3]:  # Mostrar máximo 3 IPs
-                            print(f"    - {ip}")
-                        if len(entry.get('ips', [])) > 3:
-                            print(f"    - ... y {len(entry.get('ips', [])) - 3} más")
-        
-                    if entry.get('ttl_avg'):
-                        print(f"  - TTL: min={entry.get('ttl_min')}s, avg={entry.get('ttl_avg'):.1f}s, max={entry.get('ttl_max')}s")
-                else:
-                    print(f"  Estado: {Fore.RED}Error{Style.RESET_ALL}")
-                    print(f"  - Error: {entry.get('error', 'Desconocido')}")
-
             print("-" * 40)
 
 def show_history_by_tool_type():
@@ -726,8 +681,7 @@ def show_history_by_tool_type():
     print("2. Traceroute")
     print("3. Whois")
     print("4. GeoIP")
-    print("5. DNS Lookup")
-    print("6. Todos los tipos")
+    print("5. Todos los tipos")
     
     tool_choice = input(f"{Fore.YELLOW}Seleccione el tipo: {Style.RESET_ALL}").strip()
     
@@ -741,8 +695,6 @@ def show_history_by_tool_type():
     elif tool_choice == "4":
         tool_type = "geoip"
     elif tool_choice == "5":
-        tool_type = "dns_lookup"
-    elif tool_choice == "6":
         tool_type = None
     else:
         print(f"{Fore.RED}Opción no válida{Style.RESET_ALL}")
@@ -815,17 +767,6 @@ def show_history_by_tool_type():
                     print(f"  - Organización: {latest.get('organization', 'N/A')}")
                     if latest.get('latitude') and latest.get('longitude'):
                         print(f"  - Coordenadas: {latest.get('latitude')}, {latest.get('longitude')}")
-                else:
-                    print(f"  Estado: {Fore.RED}Error{Style.RESET_ALL}")
-                    print(f"  - Error: {latest.get('error', 'Desconocido')}")
-
-            elif tool == "dns_lookup":
-                if latest.get("success", False):
-                    print(f"  Estado: {Fore.GREEN}Consulta exitosa{Style.RESET_ALL}")
-                    print(f"  - Tipo: {latest.get('record_type', 'A')}")
-                    print(f"  - Registros: {latest.get('records_found', 0)} encontrados")
-                    if latest.get('ips'):
-                        print(f"  - IPs: {len(latest.get('ips', []))} direcciones")
                 else:
                     print(f"  Estado: {Fore.RED}Error{Style.RESET_ALL}")
                     print(f"  - Error: {latest.get('error', 'Desconocido')}")

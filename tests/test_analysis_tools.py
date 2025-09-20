@@ -4,8 +4,7 @@ from unittest.mock import MagicMock, patch
 from network_toolkit.analysis_tools import (
     analyse_ping_output,
     analyze_traceroute_output,
-    analyze_whois_output,
-    analyze_dns_output
+    analyze_whois_output
 )
 
 class TestAnalysisTools:
