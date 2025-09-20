@@ -1,0 +1,24 @@
+# Testing dependencies
+pytest>=7.0.0
+pytest-cov>=4.0.0
+pytest-mock>=3.0.0
+requests-mock>=1.10.0
+freezegun>=1.2.0
+
+# Dependencies for your project
+requests>=2.25.0
+beautifulsoup4>=4.9.0
+python-whois>=0.7.3
+dnspython>=2.1.0
+colorama>=0.4.0
+
+# Development dependencies
+setuptools>=65.0.0
+wheel>=0.38.0
+twine>=4.0.0
+
+# Linting and formatting
+flake8>=5.0.0
+black>=22.0.0
+isort>=5.10.0
+mypy>=0.991
